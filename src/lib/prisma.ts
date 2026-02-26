@@ -2,9 +2,8 @@ import { PrismaClient } from '@prisma/client'
 
 const prismaClientSingleton = () => {
     return new PrismaClient({
-        accelerateUrl: process.env.DATABASE_URL,
         log: ['query', 'info', 'warn', 'error'],
-    } as any)
+    })
 }
 
 declare global {
