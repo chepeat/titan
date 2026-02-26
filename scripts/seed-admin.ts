@@ -1,8 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient({
-    datasourceUrl: 'postgresql://postgres.lkllnhezfwndcsalyqyj:DdjtfUAUBRF6EQcT@aws-1-eu-west-1.pooler.supabase.com:5432/postgres'
-})
+const prisma = new PrismaClient()
 
 async function main() {
     const email = 'chepeat.tecnologia@gmail.com'
