@@ -3,8 +3,16 @@
 import { useState, useEffect } from 'react';
 import { createUser, getUsers } from '@/services/userActions';
 
+interface User {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+    createdAt: Date;
+}
+
 export default function AdminDashboard() {
-    const [users, setUsers] = useState<any[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
 
