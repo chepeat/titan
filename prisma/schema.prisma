@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  COACH
+  USER
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  name          String?
+  role          Role          @default(USER)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // A user (Socio) can be assigned to a training plan
+  trainingPlan  TrainingPlan? @relation(fields: [trainingPlanId], references: [id])
+  trainingPlanId String?
+  
+  // A coach can create many plans (optional relationship)
+  createdPlans  TrainingPlan[] @relation("CoachPlans")
+}
+
+model TrainingPlan {
+  id        String   @id @default(cuid())
+  name      String
+  weeks     Week[]
+  
+  // Relationships
+  users     User[]
+  coachId   String?
+  coach     User?    @relation("CoachPlans", fields: [coachId], references: [id])
+}
+
+model Week {
+  id             String       @id @default(cuid())
+  number         Int
+  trainingPlanId String
+  trainingPlan   TrainingPlan @relation(fields: [trainingPlanId], references: [id])
+  days           Day[]
+}
+
+model Day {
+  id      String    @id @default(cuid())
+  number  Int
+  weekId  String
+  week    Week      @relation(fields: [weekId], references: [id])
+  sessions Session[]
+}
+
+model Session {
+  id       String    @id @default(cuid())
+  name     String
+  dayId    String
+  day      Day       @relation(fields: [dayId], references: [id])
+  routines Routine[]
+}
+
+model Routine {
+  id        String        @id @default(cuid())
+  name      String
+  sessionId String
+  session   Session       @relation(fields: [sessionId], references: [id])
+  exercises RoutineItem[]
+}
+
+model RoutineItem {
+  id          String   @id @default(cuid())
+  routineId   String
+  routine     Routine  @relation(fields: [routineId], references: [id])
+  exerciseId  String
+  exercise    Exercise @relation(fields: [exerciseId], references: [id])
+  machineId   String
+  machine     Machine  @relation(fields: [machineId], references: [id])
+  series      Int
+  reps        Int
+  restingTime Int
+  order       Int
+}
+
+model Exercise {
+  id        String        @id @default(cuid())
+  name      String
+  videoUrl  String?
+  routines  RoutineItem[]
+  machines  Machine[]
+}
+
+model Machine {
+  id        String        @id @default(cuid())
+  name      String
+  imageUrl  String?
+  coordsX   Float?
+  coordsY   Float?
+  exercises Exercise[]
+  routines  RoutineItem[]
+}

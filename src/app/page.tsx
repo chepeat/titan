@@ -1,66 +1,100 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import { createClient } from '@/lib/supabase/server';
+import prisma from '@/lib/prisma';
+import AdminDashboard from '@/components/AdminDashboard';
+import { logout } from '@/services/authActions';
 
-export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null; // El middleware se encarga de la redirección
+  }
+
+  // Buscar el rol del usuario en nuestra base de datos Prisma
+  const dbUser = await prisma.user.findUnique({
+    where: { email: user.email },
+  });
+
+  if (!dbUser) {
+    return (
+      <main style={containerStyle}>
+        <h1>Acceso Denegado</h1>
+        <p>Tu correo ({user.email}) no está registrado en el sistema de Titan Club.</p>
+        <form action={logout}>
+          <button type="submit" style={logoutButtonStyle}>Cerrar Sesión</button>
+        </form>
       </main>
-    </div>
+    );
+  }
+
+  return (
+    <main style={containerStyle}>
+      <header style={headerStyle}>
+        <h1 style={titleStyle}>Titan Club - {dbUser.role}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <span style={{ color: '#888' }}>{dbUser.name || dbUser.email}</span>
+          <form action={logout}>
+            <button type="submit" style={logoutButtonStyle}>Salir</button>
+          </form>
+        </div>
+      </header>
+
+      {dbUser.role === 'ADMIN' && <AdminDashboard />}
+      {dbUser.role === 'COACH' && (
+        <div style={placeholderStyle}>
+          <h2>Panel de Entrenador</h2>
+          <p>Próximamente: Creación de ejercicios y rutinas.</p>
+        </div>
+      )}
+      {dbUser.role === 'USER' && (
+        <div style={placeholderStyle}>
+          <h2>Panel de Socio</h2>
+          <p>Próximamente: Ver tu entrenamiento del día.</p>
+        </div>
+      )}
+    </main>
   );
 }
+
+const containerStyle: React.CSSProperties = {
+  padding: '2rem',
+  fontFamily: 'sans-serif',
+  backgroundColor: '#0a0a0a',
+  color: '#fff',
+  minHeight: '100vh',
+};
+
+const headerStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '2rem',
+  paddingBottom: '1rem',
+  borderBottom: '1px solid #222'
+};
+
+const titleStyle: React.CSSProperties = {
+  color: '#ff4d4d',
+  margin: 0,
+  fontSize: '1.5rem'
+};
+
+const logoutButtonStyle: React.CSSProperties = {
+  background: 'none',
+  border: '1px solid #444',
+  color: '#888',
+  padding: '0.5rem 1rem',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  fontSize: '0.9rem'
+};
+
+const placeholderStyle: React.CSSProperties = {
+  marginTop: '5rem',
+  padding: '3rem',
+  border: '1px dashed #333',
+  borderRadius: '16px',
+  textAlign: 'center',
+  backgroundColor: '#111'
+};
