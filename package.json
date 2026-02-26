@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
     "create-admin": "ts-node scripts/create-admin.ts"
@@ -15,6 +16,7 @@
     "@supabase/supabase-js": "^2.97.0",
     "lucide-react": "^0.575.0",
     "next": "15.1.6",
+    "prisma": "^6.4.1",
     "react": "19.0.0",
     "react-dom": "19.0.0"
   },
@@ -24,7 +26,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.1.6",
-    "prisma": "^6.4.1",
     "typescript": "^5"
   }
 }
