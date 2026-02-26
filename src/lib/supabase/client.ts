@@ -11,5 +11,15 @@ export function createClient() {
         );
     }
 
+    // Debug seguro para verificar integridad en Vercel
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+        console.log('--- Supabase Key Debug ---');
+        console.log('URL length:', supabaseUrl.length);
+        console.log('Key length:', supabaseAnonKey.length);
+        console.log('Key prefix:', supabaseAnonKey.substring(0, 10));
+        console.log('Key ends with quotes?', supabaseAnonKey.startsWith('"') || supabaseAnonKey.endsWith('"'));
+        console.log('---------------------------');
+    }
+
     return createBrowserClient(supabaseUrl, supabaseAnonKey);
 }
