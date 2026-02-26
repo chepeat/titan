@@ -3,11 +3,56 @@ import prisma from '@/lib/prisma';
 import AdminDashboard from '@/components/AdminDashboard';
 import { logout } from '@/services/authActions';
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null; // El middleware se encarga de la redirección
+  }
+
+  // Buscar el rol del usuario en nuestra base de datos Prisma
+  const dbUser = await prisma.user.findUnique({
+    where: { email: user.email },
+  });
+
+  if (!dbUser) {
+    return (
+      <main style={containerStyle}>
+        <h1>Acceso Denegado</h1>
+        <p>Tu correo ({user.email}) no está registrado en el sistema de Titan Club.</p>
+        <form action={logout}>
+          <button type="submit" style={logoutButtonStyle}>Cerrar Sesión</button>
+        </form>
+      </main>
+    );
+  }
+
   return (
-    <main style={{ padding: '2rem', backgroundColor: '#000', color: '#fff', minHeight: '100vh' }}>
-      <h1>Titan Club - Debug Mode</h1>
-      <p>Si ves esto, el sistema de rutas de Next.js funciona perfectamente.</p>
+    <main style={containerStyle}>
+      <header style={headerStyle}>
+        <h1 style={titleStyle}>Titan Club - {dbUser.role}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <span style={{ color: '#888' }}>{dbUser.name || dbUser.email}</span>
+          <form action={logout}>
+            <button type="submit" style={logoutButtonStyle}>Salir</button>
+          </form>
+        </div>
+      </header>
+
+      {dbUser.role === 'ADMIN' && <AdminDashboard />}
+      {dbUser.role === 'COACH' && (
+        <div style={placeholderStyle}>
+          <h2>Panel de Entrenador</h2>
+          <p>Próximamente: Creación de ejercicios y rutinas.</p>
+        </div>
+      )}
+      {dbUser.role === 'USER' && (
+        <div style={placeholderStyle}>
+          <h2>Panel de Socio</h2>
+          <p>Próximamente: Ver tu entrenamiento del día.</p>
+        </div>
+      )}
     </main>
   );
 }
