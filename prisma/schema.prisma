@@ -5,8 +5,9 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -20,30 +21,32 @@ enum Role {
 }
 
 model User {
-  id            String        @id @default(cuid())
-  email         String        @unique
-  name          String?
-  role          Role          @default(USER)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  
+  id        String   @id @default(cuid())
+  email     String   @unique
+  supabaseId String? @unique
+  name      String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // A user (Socio) can be assigned to a training plan
-  trainingPlan  TrainingPlan? @relation(fields: [trainingPlanId], references: [id])
+  trainingPlan   TrainingPlan? @relation(fields: [trainingPlanId], references: [id])
   trainingPlanId String?
-  
+
   // A coach can create many plans (optional relationship)
-  createdPlans  TrainingPlan[] @relation("CoachPlans")
+  createdPlans TrainingPlan[] @relation("CoachPlans")
 }
 
 model TrainingPlan {
-  id        String   @id @default(cuid())
-  name      String
-  weeks     Week[]
-  
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  weeks       Week[]
+
   // Relationships
-  users     User[]
-  coachId   String?
-  coach     User?    @relation("CoachPlans", fields: [coachId], references: [id])
+  users   User[]
+  coachId String?
+  coach   User?   @relation("CoachPlans", fields: [coachId], references: [id])
 }
 
 model Week {
@@ -55,10 +58,10 @@ model Week {
 }
 
 model Day {
-  id      String    @id @default(cuid())
-  number  Int
-  weekId  String
-  week    Week      @relation(fields: [weekId], references: [id])
+  id       String    @id @default(cuid())
+  number   Int
+  weekId   String
+  week     Week      @relation(fields: [weekId], references: [id])
   sessions Session[]
 }
 
@@ -67,6 +70,7 @@ model Session {
   name     String
   dayId    String
   day      Day       @relation(fields: [dayId], references: [id])
+  order    Int
   routines Routine[]
 }
 
@@ -75,6 +79,7 @@ model Routine {
   name      String
   sessionId String
   session   Session       @relation(fields: [sessionId], references: [id])
+  order     Int
   exercises RoutineItem[]
 }
 
@@ -84,28 +89,32 @@ model RoutineItem {
   routine     Routine  @relation(fields: [routineId], references: [id])
   exerciseId  String
   exercise    Exercise @relation(fields: [exerciseId], references: [id])
-  machineId   String
-  machine     Machine  @relation(fields: [machineId], references: [id])
+  machineId   String?
+  machine     Machine? @relation(fields: [machineId], references: [id])
   series      Int
-  reps        Int
-  restingTime Int
+  reps        Json // Store as an array indicating reps per series like [12, 10, 8]
+  restingTime Int // In seconds
   order       Int
 }
 
 model Exercise {
-  id        String        @id @default(cuid())
-  name      String
-  videoUrl  String?
-  routines  RoutineItem[]
-  machines  Machine[]
+  id           String  @id @default(cuid())
+  name         String
+  description  String?
+  videoFile    String?
+  observations String?
+
+  routines RoutineItem[]
+  machines Machine[]     @relation("ExerciseMachines")
 }
 
 model Machine {
-  id        String        @id @default(cuid())
-  name      String
-  imageUrl  String?
-  coordsX   Float?
-  coordsY   Float?
-  exercises Exercise[]
+  id           String  @id @default(cuid())
+  number       Int
+  description  String
+  imageFile    String?
+  observations String?
+
   routines  RoutineItem[]
+  exercises Exercise[]    @relation("ExerciseMachines")
 }

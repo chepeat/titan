@@ -71,5 +71,10 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(new URL('/login', request.url))
     }
 
+    // Redirigir a reset-password si el usuario debe cambiar su contraseña
+    if (user?.user_metadata?.mustChangePassword && !request.nextUrl.pathname.startsWith('/reset-password')) {
+        return NextResponse.redirect(new URL('/reset-password', request.url))
+    }
+
     return response
 }
