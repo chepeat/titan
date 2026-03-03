@@ -1,8 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+generator client {
+  provider = "prisma-client-js"
+}
 
 datasource db {
   provider  = "postgresql"
@@ -10,111 +8,105 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-enum Role {
-  ADMIN
-  COACH
-  USER
-}
-
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  supabaseId String? @unique
-  name      String?
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // A user (Socio) can be assigned to a training plan
-  trainingPlan   TrainingPlan? @relation(fields: [trainingPlanId], references: [id])
-  trainingPlanId String?
-
-  // A coach can create many plans (optional relationship)
-  createdPlans TrainingPlan[] @relation("CoachPlans")
+  id              String         @id @default(cuid())
+  email           String         @unique
+  supabaseId      String?        @unique
+  name            String?
+  role            Role           @default(USER)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  trainingPlanId  String?
+  createdRoutines Routine[]      @relation("CoachRoutines")
+  createdSessions Session[]      @relation("CoachSessions")
+  createdPlans    TrainingPlan[] @relation("CoachPlans")
+  trainingPlan    TrainingPlan?  @relation(fields: [trainingPlanId], references: [id])
+  createdWeeks    Week[]         @relation("CoachWeeks")
 }
 
 model TrainingPlan {
   id          String  @id @default(cuid())
   name        String
   description String?
+  coachId     String?
+  coach       User?   @relation("CoachPlans", fields: [coachId], references: [id])
+  users       User[]
   weeks       Week[]
-
-  // Relationships
-  users   User[]
-  coachId String?
-  coach   User?   @relation("CoachPlans", fields: [coachId], references: [id])
 }
 
 model Week {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
+  name           String?
   number         Int
-  trainingPlanId String
-  trainingPlan   TrainingPlan @relation(fields: [trainingPlanId], references: [id])
-  days           Day[]
-}
-
-model Day {
-  id       String    @id @default(cuid())
-  number   Int
-  weekId   String
-  week     Week      @relation(fields: [weekId], references: [id])
-  sessions Session[]
+  coachId        String?
+  trainingPlanId String?
+  sessions       Session[]
+  coach          User?         @relation("CoachWeeks", fields: [coachId], references: [id])
+  trainingPlan   TrainingPlan? @relation(fields: [trainingPlanId], references: [id])
 }
 
 model Session {
-  id       String    @id @default(cuid())
-  name     String
-  dayId    String
-  day      Day       @relation(fields: [dayId], references: [id])
-  order    Int
-  routines Routine[]
+  id        String    @id @default(cuid())
+  name      String
+  weekId    String?
+  dayNumber Int?
+  order     Int?
+  coachId   String?
+  coach     User?     @relation("CoachSessions", fields: [coachId], references: [id])
+  routines  Routine[]
+  week      Week?     @relation(fields: [weekId], references: [id])
 }
 
 model Routine {
-  id        String        @id @default(cuid())
-  name      String
-  sessionId String
-  session   Session       @relation(fields: [sessionId], references: [id])
-  order     Int
-  exercises RoutineItem[]
+  id          String        @id @default(cuid())
+  name        String
+  sessionId   String?
+  order       Int?
+  coachId     String?
+  createdAt   DateTime      @default(now())
+  description String?
+  updatedAt   DateTime      @updatedAt
+  coach       User?         @relation("CoachRoutines", fields: [coachId], references: [id])
+  session     Session?      @relation(fields: [sessionId], references: [id])
+  exercises   RoutineItem[]
 }
 
 model RoutineItem {
   id          String   @id @default(cuid())
   routineId   String
-  routine     Routine  @relation(fields: [routineId], references: [id])
   exerciseId  String
-  exercise    Exercise @relation(fields: [exerciseId], references: [id])
   machineId   String?
-  machine     Machine? @relation(fields: [machineId], references: [id])
   series      Int
-  reps        Json // Store as an array indicating reps per series like [12, 10, 8]
-  restingTime Int // In seconds
+  reps        Json
+  restingTime Int
   order       Int
+  exercise    Exercise @relation(fields: [exerciseId], references: [id])
+  machine     Machine? @relation(fields: [machineId], references: [id])
+  routine     Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
 }
 
 model Exercise {
-  id           String  @id @default(cuid())
+  id           String        @id @default(cuid())
   name         String
   description  String?
   videoFile    String?
   observations String?
-
-  routines RoutineItem[]
-  machines Machine[]     @relation("ExerciseMachines")
+  routines     RoutineItem[]
+  machines     Machine[]     @relation("ExerciseMachines")
 }
 
 model Machine {
-  id           String  @id @default(cuid())
+  id           String        @id @default(cuid())
   number       Int
   description  String
   imageFile    String?
   observations String?
+  routines     RoutineItem[]
+  exercises    Exercise[]    @relation("ExerciseMachines")
+}
 
-  routines  RoutineItem[]
-  exercises Exercise[]    @relation("ExerciseMachines")
+enum Role {
+  ADMIN
+  COACH
+  USER
 }

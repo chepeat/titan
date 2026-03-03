@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import prisma from '@/lib/prisma';
 import AdminDashboard from '@/components/AdminDashboard';
+import TrainerDashboard from '@/components/TrainerDashboard';
 import { logout } from '@/services/authActions';
+import UserPlanView from '@/components/UserPlanView';
 
 export default async function Home() {
   const supabase = await createClient();
@@ -41,16 +43,17 @@ export default async function Home() {
       </header>
 
       {dbUser.role === 'ADMIN' && <AdminDashboard />}
-      {dbUser.role === 'COACH' && (
-        <div style={placeholderStyle}>
-          <h2>Panel de Entrenador</h2>
-          <p>Próximamente: Creación de ejercicios y rutinas.</p>
-        </div>
-      )}
+      {dbUser.role === 'COACH' && <TrainerDashboard coachId={dbUser.id} />}
       {dbUser.role === 'USER' && (
-        <div style={placeholderStyle}>
-          <h2>Panel de Socio</h2>
-          <p>Próximamente: Ver tu entrenamiento del día.</p>
+        <div style={{ marginTop: '2rem' }}>
+          {dbUser.trainingPlanId ? (
+            <UserPlanView planId={dbUser.trainingPlanId} />
+          ) : (
+            <div style={placeholderStyle}>
+              <h2>¡Bienvenido, Titan!</h2>
+              <p>Tu entrenador todavía no te ha asignado un plan. En cuanto lo haga, aparecerá aquí.</p>
+            </div>
+          )}
         </div>
       )}
     </main>

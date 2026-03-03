@@ -123,3 +123,30 @@ export async function getUsers() {
         return [];
     }
 }
+
+export async function getMembers() {
+    try {
+        return await prisma.user.findMany({
+            where: { role: Role.USER },
+            include: { trainingPlan: true },
+            orderBy: { name: 'asc' },
+        });
+    } catch (error) {
+        console.error('Error fetching members:', error);
+        return [];
+    }
+}
+
+export async function assignPlanToUser(userId: string, planId: string | null) {
+    try {
+        await prisma.user.update({
+            where: { id: userId },
+            data: { trainingPlanId: planId },
+        });
+        revalidatePath('/');
+        return { success: true };
+    } catch (error) {
+        console.error('Error assigning plan:', error);
+        return { success: false, error: (error as Error).message };
+    }
+}
