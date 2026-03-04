@@ -8,25 +8,46 @@ type AnyType = any;
 
 interface UserPlanViewProps {
     planId: string;
+    userId: string;
 }
 
-export default function UserPlanView({ planId }: UserPlanViewProps) {
+export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
     const [plan, setPlan] = useState<AnyType | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeWeekIdx, setActiveWeekIdx] = useState(0);
+    const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
 
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const data = await getTrainingPlan(planId);
+            const data = await getTrainingPlan(planId, userId);
             setPlan(data);
             setLoading(false);
         }
-        if (planId) load();
-    }, [planId]);
+        if (planId && userId) load();
+    }, [planId, userId]);
 
     if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando tu entrenamiento...</div>;
     if (!plan) return <div style={{ padding: '2rem', textAlign: 'center' }}>No se pudo cargar el plan de entrenamiento.</div>;
+
+    const handleToggleCompletion = async (sessionId: string, currentStatus: boolean) => {
+        // Optimistic update
+        const newPlan = { ...plan };
+        newPlan.weeks[activeWeekIdx].sessions = newPlan.weeks[activeWeekIdx].sessions.map((s: AnyType) => {
+            if (s.id === sessionId) return { ...s, isCompleted: !currentStatus };
+            return s;
+        });
+        setPlan(newPlan);
+
+        const { toggleSessionCompletion } = await import('@/services/workoutActions');
+        const res = await toggleSessionCompletion(sessionId, !currentStatus);
+        if (!res.success) {
+            alert('Error al guardar progreso: ' + res.error);
+            // Rollback (re-fetch is better)
+            const data = await getTrainingPlan(planId, userId);
+            setPlan(data);
+        }
+    };
 
     return (
         <div style={containerStyle}>
@@ -59,15 +80,44 @@ export default function UserPlanView({ planId }: UserPlanViewProps) {
                 ) : (
                     <div style={sessionsGridStyle}>
                         {plan.weeks[activeWeekIdx].sessions.map((session: AnyType) => (
-                            <div key={session.id} style={sessionCardStyle}>
-                                <h3 style={sessionTitleStyle}>{session.name}</h3>
+                            <div key={session.id} style={{
+                                ...sessionCardStyle,
+                                borderColor: session.isCompleted ? '#4ade80' : '#333',
+                                backgroundColor: session.isCompleted ? 'rgba(74, 222, 128, 0.05)' : '#0a0a0a',
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #222', paddingBottom: '0.75rem' }}>
+                                    <h3 style={{ ...sessionTitleStyle, borderBottom: 'none', margin: 0, paddingBottom: 0 }}>
+                                        {session.name}
+                                        {session.isCompleted && <span style={{ marginLeft: '8px', fontSize: '0.9rem' }}>✅</span>}
+                                    </h3>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: session.isCompleted ? '#4ade80' : '#888' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={!!session.isCompleted}
+                                            onChange={() => handleToggleCompletion(session.id, !!session.isCompleted)}
+                                            style={{ cursor: 'pointer', accentColor: '#4ade80', width: '18px', height: '18px' }}
+                                        />
+                                        Hecho
+                                    </label>
+                                </div>
                                 {session.routines.map((routine: AnyType) => (
                                     <div key={routine.id} style={routineBoxStyle}>
                                         <h4 style={routineTitleStyle}>{routine.name}</h4>
                                         <div style={exerciseListStyle}>
                                             {routine.exercises.map((item: AnyType) => (
                                                 <div key={item.id} style={exerciseItemStyle}>
-                                                    <div style={exerciseNameStyle}>{item.exercise?.name}</div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                        <div style={exerciseNameStyle}>{item.exercise?.name}</div>
+                                                        {item.exercise?.videoFile && (
+                                                            <button
+                                                                onClick={() => setActiveVideoUrl(item.exercise.videoFile)}
+                                                                style={videoIconButtonStyle}
+                                                                title="Ver vídeo de ejecución"
+                                                            >
+                                                                📹 Vídeo
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                     <div style={exerciseDetailsStyle}>
                                                         <span>{item.series} series</span>
                                                         <span>•</span>
@@ -87,6 +137,23 @@ export default function UserPlanView({ planId }: UserPlanViewProps) {
                     </div>
                 )}
             </div>
+
+            {/* Video Modal */}
+            {activeVideoUrl && (
+                <div style={modalOverlayStyle} onClick={() => setActiveVideoUrl(null)}>
+                    <div style={modalContentStyle} onClick={e => e.stopPropagation()}>
+                        <button style={closeButtonStyle} onClick={() => setActiveVideoUrl(null)}>✕</button>
+                        <h3 style={{ margin: '0 0 15px 0', color: '#fff', fontSize: '1.2rem' }}>Demostración del Ejercicio</h3>
+                        <video
+                            src={activeVideoUrl}
+                            controls
+                            autoPlay
+                            playsInline
+                            style={videoPlayerStyle}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -197,4 +264,68 @@ const exerciseDetailsStyle: React.CSSProperties = {
     color: '#666',
     display: 'flex',
     gap: '8px',
+};
+
+const videoIconButtonStyle: React.CSSProperties = {
+    background: 'rgba(255, 77, 77, 0.1)',
+    border: '1px solid #ff4d4d',
+    color: '#ff4d4d',
+    borderRadius: '4px',
+    padding: '2px 8px',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    transition: 'all 0.2s',
+};
+
+const modalOverlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    padding: '1rem',
+    backdropFilter: 'blur(5px)',
+};
+
+const modalContentStyle: React.CSSProperties = {
+    backgroundColor: '#111',
+    borderRadius: '16px',
+    padding: '20px',
+    maxWidth: '800px',
+    width: '100%',
+    position: 'relative',
+    border: '1px solid #333',
+    boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+};
+
+const closeButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '15px',
+    right: '15px',
+    background: '#222',
+    border: '1px solid #444',
+    color: '#fff',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+};
+
+const videoPlayerStyle: React.CSSProperties = {
+    width: '100%',
+    borderRadius: '8px',
+    backgroundColor: '#000',
+    maxHeight: '70vh',
 };

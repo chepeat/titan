@@ -20,8 +20,9 @@ model User {
   createdRoutines Routine[]      @relation("CoachRoutines")
   createdSessions Session[]      @relation("CoachSessions")
   createdPlans    TrainingPlan[] @relation("CoachPlans")
-  trainingPlan    TrainingPlan?  @relation(fields: [trainingPlanId], references: [id])
-  createdWeeks    Week[]         @relation("CoachWeeks")
+  trainingPlan    TrainingPlan?       @relation(fields: [trainingPlanId], references: [id])
+  createdWeeks    Week[]                @relation("CoachWeeks")
+  completedSessions SessionCompletion[]
 }
 
 model TrainingPlan {
@@ -54,7 +55,8 @@ model Session {
   coachId   String?
   coach     User?     @relation("CoachSessions", fields: [coachId], references: [id])
   routines  Routine[]
-  week      Week?     @relation(fields: [weekId], references: [id])
+  week      Week?               @relation(fields: [weekId], references: [id])
+  completions SessionCompletion[]
 }
 
 model Routine {
@@ -109,4 +111,15 @@ enum Role {
   ADMIN
   COACH
   USER
+}
+
+model SessionCompletion {
+  id          String   @id @default(cuid())
+  userId      String
+  sessionId   String
+  completedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sessionId])
 }

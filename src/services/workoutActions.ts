@@ -2,7 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 
 // Exercise Actions
 export async function getExercises() {
@@ -284,28 +284,36 @@ export async function getTrainingPlans() {
     }
 }
 
-export async function getTrainingPlan(id: string) {
+export async function getTrainingPlan(id: string, userId?: string) {
     try {
-        return await prisma.trainingPlan.findUnique({
+        const sessionInclude: any = {
+            routines: {
+                include: {
+                    exercises: {
+                        include: {
+                            exercise: true,
+                            machine: true
+                        },
+                        orderBy: { order: 'asc' }
+                    }
+                },
+                orderBy: { order: 'asc' }
+            }
+        };
+
+        if (userId) {
+            sessionInclude.completions = {
+                where: { userId }
+            };
+        }
+
+        const plan = await prisma.trainingPlan.findUnique({
             where: { id },
             include: {
                 weeks: {
                     include: {
                         sessions: {
-                            include: {
-                                routines: {
-                                    include: {
-                                        exercises: {
-                                            include: {
-                                                exercise: true,
-                                                machine: true
-                                            },
-                                            orderBy: { order: 'asc' }
-                                        }
-                                    },
-                                    orderBy: { order: 'asc' }
-                                }
-                            },
+                            include: sessionInclude,
                             orderBy: { dayNumber: 'asc' }
                         }
                     },
@@ -313,6 +321,19 @@ export async function getTrainingPlan(id: string) {
                 }
             }
         });
+
+        if (!plan) return null;
+
+        // Transform to include a flag for easy UI consumption
+        const transformedWeeks = (plan as any).weeks.map((week: any) => ({
+            ...week,
+            sessions: week.sessions.map((session: any) => ({
+                ...session,
+                isCompleted: session.completions && session.completions.length > 0
+            }))
+        }));
+
+        return { ...plan, weeks: transformedWeeks };
     } catch (error: unknown) {
         console.error('Error fetching training plan:', error);
         return null;
@@ -861,6 +882,46 @@ export async function deleteWeekTemplate(weekId: string) {
         return { success: true };
     } catch (error: unknown) {
         console.error('Error deleting week template:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
+    }
+}
+
+export async function toggleSessionCompletion(sessionId: string, completed: boolean) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No autenticado');
+
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+        if (!dbUser) throw new Error('Usuario no encontrado');
+
+        if (completed) {
+            await (prisma as any).sessionCompletion.upsert({
+                where: {
+                    userId_sessionId: {
+                        userId: dbUser.id,
+                        sessionId: sessionId
+                    }
+                },
+                update: {},
+                create: {
+                    userId: dbUser.id,
+                    sessionId: sessionId
+                }
+            });
+        } else {
+            await (prisma as any).sessionCompletion.deleteMany({
+                where: {
+                    userId: dbUser.id,
+                    sessionId: sessionId
+                }
+            });
+        }
+
+        revalidatePath('/');
+        return { success: true };
+    } catch (error: unknown) {
+        console.error('Error toggling session completion:', error);
         return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
     }
 }

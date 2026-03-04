@@ -47,7 +47,7 @@ export default async function Home() {
       {dbUser.role === 'USER' && (
         <div style={{ marginTop: '2rem' }}>
           {dbUser.trainingPlanId ? (
-            <UserPlanView planId={dbUser.trainingPlanId} />
+            <UserPlanView planId={dbUser.trainingPlanId} userId={dbUser.id} />
           ) : (
             <div style={placeholderStyle}>
               <h2>¡Bienvenido, Titan!</h2>
