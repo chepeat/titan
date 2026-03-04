@@ -286,6 +286,7 @@ export async function getTrainingPlans() {
 
 export async function getTrainingPlan(id: string, userId?: string) {
     try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const sessionInclude: any = {
             routines: {
                 include: {
@@ -325,8 +326,10 @@ export async function getTrainingPlan(id: string, userId?: string) {
         if (!plan) return null;
 
         // Transform to include a flag for easy UI consumption
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const transformedWeeks = (plan as any).weeks.map((week: any) => ({
             ...week,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             sessions: week.sessions.map((session: any) => ({
                 ...session,
                 isCompleted: session.completions && session.completions.length > 0
@@ -896,6 +899,7 @@ export async function toggleSessionCompletion(sessionId: string, completed: bool
         if (!dbUser) throw new Error('Usuario no encontrado');
 
         if (completed) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await (prisma as any).sessionCompletion.upsert({
                 where: {
                     userId_sessionId: {
@@ -910,6 +914,7 @@ export async function toggleSessionCompletion(sessionId: string, completed: bool
                 }
             });
         } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await (prisma as any).sessionCompletion.deleteMany({
                 where: {
                     userId: dbUser.id,

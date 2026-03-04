@@ -24,6 +24,7 @@ import {
 } from '@/services/workoutActions';
 import { getMembers, assignPlanToUser } from '@/services/userActions';
 import Link from 'next/link';
+import Image from 'next/image';
 import WorkoutPDFExporter from './WorkoutPDFExporter';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,6 +121,7 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
         setEditingWeek(null);
         setWeekName('');
         setWeekSessions([]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [view]);
 
     // HANDLERS
@@ -809,7 +811,7 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                             <div key={m.id} style={itemCardStyle}>
                                                 <div style={{ display: 'flex', gap: '15px', alignItems: 'start' }}>
                                                     {m.imageFile && (
-                                                        <img src={m.imageFile} alt={m.description} style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover', border: '1px solid #333' }} />
+                                                        <Image src={m.imageFile} alt={m.description} width={60} height={60} style={{ borderRadius: '8px', objectFit: 'cover', border: '1px solid #333' }} unoptimized />
                                                     )}
                                                     <div style={{ flex: 1 }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>

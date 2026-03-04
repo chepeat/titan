@@ -531,13 +531,7 @@ const weekCardStyle: React.CSSProperties = {
     marginBottom: '2rem'
 };
 
-const dayCardStyle: React.CSSProperties = {
-    backgroundColor: '#161616',
-    padding: '1.2rem',
-    borderRadius: '12px',
-    border: '1px solid #333',
-    marginTop: '1.2rem'
-};
+
 
 const sessionCardStyle: React.CSSProperties = {
     backgroundColor: '#202020',
