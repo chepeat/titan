@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     getExercises,
     getMachines,
@@ -20,7 +21,10 @@ import {
     getWeekTemplates,
     createWeekTemplate,
     updateWeekTemplate,
-    deleteWeekTemplate
+    deleteWeekTemplate,
+    deleteTrainingPlan,
+    deleteExercise,
+    deleteMachine
 } from '@/services/workoutActions';
 import { getMembers, assignPlanToUser } from '@/services/userActions';
 import Link from 'next/link';
@@ -31,6 +35,7 @@ import WorkoutPDFExporter from './WorkoutPDFExporter';
 type AnyType = any;
 
 export default function TrainerDashboard({ coachId }: { coachId: string }) {
+    const router = useRouter();
     const [view, setView] = useState<'hub' | 'plans' | 'exercises' | 'machines' | 'routines' | 'sessions' | 'weeks' | 'users'>('hub');
     const [plans, setPlans] = useState<AnyType[]>([]);
     const [members, setMembers] = useState<AnyType[]>([]);
@@ -59,6 +64,10 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
     // Session construction state
     const [sessionRoutines, setSessionRoutines] = useState<AnyType[]>([]);
     const [sessionName, setSessionName] = useState('');
+
+    // File Name tracking state
+    const [machineImageFileName, setMachineImageFileName] = useState('');
+    const [exerciseVideoFileName, setExerciseVideoFileName] = useState('');
 
     // Week construction state
     const [weekName, setWeekName] = useState('');
@@ -143,7 +152,15 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
             setMessage(editingMachine ? 'Máquina actualizada' : 'Máquina registrada');
             e.currentTarget.reset();
             setEditingMachine(null);
-            fetchData();
+            setMachineImageFileName(''); // Reset file name
+            // Update machines state directly using returned machine data
+            const returnedMachine = (res as AnyType).machine;
+            if (returnedMachine) {
+                setMachines(prev => {
+                    const filtered = prev.filter((m: AnyType) => m.id !== returnedMachine.id);
+                    return [...filtered, returnedMachine].sort((a: AnyType, b: AnyType) => a.number - b.number);
+                });
+            }
         } else {
             setMessage('Error: ' + (res as AnyType).error);
         }
@@ -167,8 +184,19 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
             setMessage(editingExercise ? 'Ejercicio actualizado' : 'Ejercicio guardado');
             e.currentTarget.reset();
             setEditingExercise(null);
+            setExerciseVideoFileName(''); // Reset file name
             setSelectedMachineIds([]);
-            fetchData();
+            // Update exercise list directly using returned exercise data (if available)
+            const returnedExercise = (res as AnyType).exercise;
+            if (returnedExercise) {
+                setExercises(prev => {
+                    const filtered = prev.filter((ex: AnyType) => ex.id !== returnedExercise.id);
+                    return [...filtered, returnedExercise].sort((a: AnyType, b: AnyType) => a.name.localeCompare(b.name));
+                });
+            } else {
+                // fallback: re-fetch all exercises
+                fetchData();
+            }
         } else {
             setMessage('Error: ' + (res as AnyType).error);
         }
@@ -532,6 +560,21 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                             <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '15px' }}>{p.description || 'Sin descripción'}</p>
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                                                 <Link href={`/coach/workouts/${p.id}`} style={smallButtonStyle}>Editar Plan</Link>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (confirm('¿Estás seguro de que quieres eliminar este plan de entrenamiento? Esta acción no se puede deshacer.')) {
+                                                            const res = await deleteTrainingPlan(p.id);
+                                                            if (res.success) {
+                                                                fetchData();
+                                                            } else {
+                                                                alert('Error al eliminar el plan: ' + res.error);
+                                                            }
+                                                        }
+                                                    }}
+                                                    style={{ ...smallButtonStyle, backgroundColor: 'transparent', border: '1px solid #ff4d4d', color: '#ff4d4d' }}
+                                                >
+                                                    Eliminar Plan
+                                                </button>
                                                 <WorkoutPDFExporter plan={p} />
                                             </div>
                                         </div>
@@ -786,9 +829,13 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                             accept="image/*"
                                             style={fileInputStyle}
                                             id="machine-upload"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) setMachineImageFileName(file.name);
+                                            }}
                                         />
                                         <label htmlFor="machine-upload" style={fileLabelStyle}>
-                                            {uploading ? '⬆️ Subiendo...' : '📸 Seleccionar foto de la máquina'}
+                                            {uploading ? '⬆️ Subiendo...' : (machineImageFileName ? `✅ ${machineImageFileName}` : '📸 Seleccionar foto de la máquina')}
                                         </label>
                                     </div>
                                 </div>
@@ -819,7 +866,23 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                                                 <span style={{ color: '#ff4d4d', fontWeight: 'bold' }}>#{m.number}</span>
                                                                 <strong style={{ display: 'block', fontSize: '1rem' }}>{m.description}</strong>
                                                             </div>
-                                                            <button onClick={() => startEditMachine(m)} style={editIconButtonStyle}>✏️</button>
+                                                            <div style={{ display: 'flex', gap: '5px' }}>
+                                                                <button onClick={() => startEditMachine(m)} style={editIconButtonStyle}>✏️</button>
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (confirm(`¿Estás seguro de que quieres eliminar la máquina "${m.description}"?`)) {
+                                                                            const res = await deleteMachine(m.id);
+                                                                            if (res.success) {
+                                                                                fetchData();
+                                                                            } else {
+                                                                                alert('Error al eliminar la máquina: ' + res.error);
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    style={{ ...editIconButtonStyle, filter: 'grayscale(1)', color: '#ff4d4d' }}>
+                                                                    🗑️
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                         {m.observations && <p style={{ fontSize: '0.8rem', color: '#888', margin: '5px 0 0 0' }}>{m.observations}</p>}
                                                     </div>
@@ -850,8 +913,12 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                         <textarea name="observations" placeholder="Cuidado con la espalda, etc." style={{ ...inputStyle, minHeight: '80px' }} />
                                     </div>
                                 </div>
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={labelStyle}>Enlace de Vídeo (Ojo: YouTube, Vimeo, etc. Opcional)</label>
+                                    <input type="url" name="videoUrl" placeholder="https://www.youtube.com/watch?v=..." defaultValue={editingExercise?.videoUrl || ''} style={inputStyle} />
+                                </div>
                                 <div style={{ marginBottom: '20px' }}>
-                                    <label style={labelStyle}>Vídeo del Ejercicio {editingExercise ? '(Opcional, deja vacío para mantener actual)' : '(Opcional)'}</label>
+                                    <label style={labelStyle}>O subir Vídeo del Ejercicio {editingExercise ? '(Opcional, deja vacío para mantener actual)' : '(Opcional)'}</label>
 
                                     {editingExercise?.videoFile && (
                                         <div style={videoStatusIndicatorStyle}>
@@ -867,9 +934,13 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                             accept="video/*"
                                             style={fileInputStyle}
                                             id="video-upload"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) setExerciseVideoFileName(file.name);
+                                            }}
                                         />
                                         <label htmlFor="video-upload" style={fileLabelStyle}>
-                                            {uploading ? '⬆️ Subiendo...' : '📹 Subir nuevo vídeo'}
+                                            {uploading ? '⬆️ Subiendo...' : (exerciseVideoFileName ? `✅ ${exerciseVideoFileName}` : '📹 Subir nuevo vídeo')}
                                         </label>
                                     </div>
                                 </div>
@@ -925,14 +996,35 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                                             <span style={{ fontSize: '0.8rem', color: '#666' }}>
                                                                 {ex.machines?.length > 0 ? ex.machines.map((m: AnyType) => `Máquina ${m.number}`).join(', ') : 'Sin máquina'}
                                                             </span>
-                                                            <button onClick={() => startEditExercise(ex)} style={editIconButtonStyle}>✏️</button>
+                                                            <div style={{ display: 'flex', gap: '5px' }}>
+                                                                <button onClick={() => startEditExercise(ex)} style={editIconButtonStyle}>✏️</button>
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (confirm(`¿Estás seguro de que quieres eliminar el ejercicio "${ex.name}"?`)) {
+                                                                            const res = await deleteExercise(ex.id);
+                                                                            if (res.success) {
+                                                                                fetchData();
+                                                                            } else {
+                                                                                alert('Error al eliminar el ejercicio: ' + res.error);
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    style={{ ...editIconButtonStyle, filter: 'grayscale(1)', color: '#ff4d4d' }}>
+                                                                    🗑️
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     {ex.description && <p style={{ fontSize: '0.85rem', color: '#888', margin: 0 }}>{ex.description}</p>}
                                                     <div style={{ display: 'flex', gap: '15px', marginTop: '5px' }}>
+                                                        {ex.videoUrl && (
+                                                            <a href={ex.videoUrl} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: '#ff4d4d', textDecoration: 'none' }}>
+                                                                🔗 Enlace Externo
+                                                            </a>
+                                                        )}
                                                         {ex.videoFile && (
                                                             <a href={ex.videoFile} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: '#ff4d4d', textDecoration: 'none' }}>
-                                                                📹 Ver Vídeo
+                                                                📹 Vídeo Subido
                                                             </a>
                                                         )}
                                                         {ex.observations && <span style={{ fontSize: '0.75rem', color: '#4caf50' }}>📝 {ex.observations}</span>}

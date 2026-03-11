@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getTrainingPlan } from '@/services/workoutActions';
+import { getTrainingPlan, getExerciseLogs } from '@/services/workoutActions';
+import RoutineDetailView from './RoutineDetailView';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyType = any;
@@ -17,10 +18,16 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
     const [activeWeekIdx, setActiveWeekIdx] = useState(0);
     const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
 
+    // Navigation state for Routine Detail
+    const [activeSession, setActiveSession] = useState<AnyType | null>(null);
+    const [activeRoutineIdx, setActiveRoutineIdx] = useState<number | null>(null);
+    const [currentLogs, setCurrentLogs] = useState<AnyType[]>([]);
+
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const data = await getTrainingPlan(planId, userId);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const data: any = await getTrainingPlan(planId, userId);
             setPlan(data);
             setLoading(false);
         }
@@ -48,6 +55,64 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
             setPlan(data);
         }
     };
+
+    const handleStartRoutine = async (session: AnyType, routineIdx: number) => {
+        const logs = await getExerciseLogs(userId, session.id);
+        setCurrentLogs(logs);
+        setActiveSession(session);
+        setActiveRoutineIdx(routineIdx);
+    };
+
+    const handleNextRoutine = async () => {
+        if (!activeSession) return;
+
+        if (activeRoutineIdx !== null && activeRoutineIdx < activeSession.routines.length - 1) {
+            setActiveRoutineIdx(activeRoutineIdx + 1);
+            window.scrollTo(0, 0);
+        } else {
+            // Last routine finished
+            if (!activeSession.isCompleted) {
+                await handleToggleCompletion(activeSession.id, false);
+            }
+            setActiveRoutineIdx(null);
+            setActiveSession(null);
+        }
+    };
+
+    const getEmbedUrl = (url: string) => {
+        if (!url) return null;
+        if (url.includes('youtube.com/embed/')) return url;
+        let videoId = '';
+        if (url.includes('youtube.com/watch?v=')) {
+            videoId = url.split('v=')[1]?.split('&')[0];
+        } else if (url.includes('youtu.be/')) {
+            videoId = url.split('youtu.be/')[1]?.split('?')[0];
+        }
+        if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+        return url;
+    };
+
+    const isExternalUrl = (url: string | null) => {
+        if (!url) return false;
+        return url.startsWith('http') && (url.includes('youtube.com') || url.includes('youtu.be'));
+    };
+
+    if (activeSession && activeRoutineIdx !== null) {
+        return (
+            <RoutineDetailView
+                sessionId={activeSession.id}
+                userId={userId}
+                routine={activeSession.routines[activeRoutineIdx]}
+                initialLogs={currentLogs}
+                onNext={handleNextRoutine}
+                onBack={() => {
+                    setActiveRoutineIdx(null);
+                    setActiveSession(null);
+                }}
+                isLastRoutine={activeRoutineIdx === activeSession.routines.length - 1}
+            />
+        );
+    }
 
     return (
         <div style={containerStyle}>
@@ -88,7 +153,6 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #222', paddingBottom: '0.75rem' }}>
                                     <h3 style={{ ...sessionTitleStyle, borderBottom: 'none', margin: 0, paddingBottom: 0 }}>
                                         {session.name}
-                                        {session.isCompleted && <span style={{ marginLeft: '8px', fontSize: '0.9rem' }}>✅</span>}
                                     </h3>
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: session.isCompleted ? '#4ade80' : '#888' }}>
                                         <input
@@ -100,35 +164,51 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                         Hecho
                                     </label>
                                 </div>
-                                {session.routines.map((routine: AnyType) => (
+
+                                <button
+                                    onClick={() => handleStartRoutine(session, 0)}
+                                    style={startSessionButtonStyle}
+                                >
+                                    {session.isCompleted ? 'Repetir Entrenamiento' : 'Comenzar Entrenamiento'}
+                                </button>
+
+                                {session.routines.map((routine: AnyType, rIdx: number) => (
                                     <div key={routine.id} style={routineBoxStyle}>
-                                        <h4 style={routineTitleStyle}>{routine.name}</h4>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                            <h4 style={{ ...routineTitleStyle, margin: 0 }}>{routine.name}</h4>
+                                            <button
+                                                onClick={() => handleStartRoutine(session, rIdx)}
+                                                style={startRoutineSmallButtonStyle}
+                                            >
+                                                Ir a rutina
+                                            </button>
+                                        </div>
                                         <div style={exerciseListStyle}>
-                                            {routine.exercises.map((item: AnyType) => (
-                                                <div key={item.id} style={exerciseItemStyle}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                        <div style={exerciseNameStyle}>{item.exercise?.name}</div>
-                                                        {item.exercise?.videoFile && (
-                                                            <button
-                                                                onClick={() => setActiveVideoUrl(item.exercise.videoFile)}
-                                                                style={videoIconButtonStyle}
-                                                                title="Ver vídeo de ejecución"
-                                                            >
-                                                                📹 Vídeo
-                                                            </button>
-                                                        )}
+                                            {routine.exercises.map((item: AnyType) => {
+                                                const videoUrl = item.exercise?.videoFile || item.exercise?.videoUrl;
+
+                                                return (
+                                                    <div key={item.id} style={exerciseItemStyle}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                                            <div style={exerciseNameStyle}>{item.exercise?.name}</div>
+                                                            {(item.machine?.number || item.exercise?.machines?.[0]?.number) && (
+                                                                <div style={prominentMachineBadgeStyle}>
+                                                                    MÁQUINA {item.machine?.number || item.exercise.machines[0].number}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <div style={exerciseDetailsStyle}>
+                                                                <span>{item.series} series</span>
+                                                                <span>•</span>
+                                                                <span>{Array.isArray(item.reps) ? item.reps.join('-') : item.reps} reps</span>
+                                                                <span>•</span>
+                                                                <span>{item.restingTime}s desc.</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div style={exerciseDetailsStyle}>
-                                                        <span>{item.series} series</span>
-                                                        <span>•</span>
-                                                        <span style={{ color: '#ff4d4d' }}>
-                                                            {Array.isArray(item.reps) ? item.reps.join(' - ') : item.reps} reps
-                                                        </span>
-                                                        <span>•</span>
-                                                        <span>{item.restingTime}s descanso</span>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 ))}
@@ -144,13 +224,24 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                     <div style={modalContentStyle} onClick={e => e.stopPropagation()}>
                         <button style={closeButtonStyle} onClick={() => setActiveVideoUrl(null)}>✕</button>
                         <h3 style={{ margin: '0 0 15px 0', color: '#fff', fontSize: '1.2rem' }}>Demostración del Ejercicio</h3>
-                        <video
-                            src={activeVideoUrl}
-                            controls
-                            autoPlay
-                            playsInline
-                            style={videoPlayerStyle}
-                        />
+                        {isExternalUrl(activeVideoUrl) ? (
+                            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '8px' }}>
+                                <iframe
+                                    src={getEmbedUrl(activeVideoUrl) || ''}
+                                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                />
+                            </div>
+                        ) : (
+                            <video
+                                src={activeVideoUrl}
+                                controls
+                                autoPlay
+                                playsInline
+                                style={videoPlayerStyle}
+                            />
+                        )}
                     </div>
                 </div>
             )}
@@ -251,6 +342,19 @@ const exerciseItemStyle: React.CSSProperties = {
     backgroundColor: '#161616',
     borderRadius: '8px',
     borderLeft: '3px solid #ff4d4d',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+};
+
+const prominentMachineBadgeStyle: React.CSSProperties = {
+    backgroundColor: '#ff4d4d',
+    color: '#fff',
+    padding: '2px 8px',
+    borderRadius: '4px',
+    fontSize: '0.7rem',
+    fontWeight: '900',
+    letterSpacing: '0.5px',
 };
 
 const exerciseNameStyle: React.CSSProperties = {
@@ -277,6 +381,33 @@ const videoIconButtonStyle: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
+    transition: 'all 0.2s',
+};
+
+const startSessionButtonStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '1.25rem',
+    backgroundColor: '#ff4d4d',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '12px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    marginBottom: '2rem',
+    fontSize: '1.3rem',
+    transition: 'all 0.2s',
+    boxShadow: '0 6px 20px rgba(255, 77, 77, 0.3)',
+};
+
+const startRoutineSmallButtonStyle: React.CSSProperties = {
+    padding: '8px 16px',
+    backgroundColor: '#333',
+    color: '#fff',
+    border: '1px solid #444',
+    borderRadius: '8px',
+    fontSize: '0.9rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
     transition: 'all 0.2s',
 };
 

@@ -12,8 +12,6 @@ export default function WorkoutEditor({ coachId, planId }: { coachId: string; pl
     const router = useRouter();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [exercises, setExercises] = useState<AnyType[]>([]);
-    const [catalogRoutines, setCatalogRoutines] = useState<AnyType[]>([]);
-    const [catalogSessions, setCatalogSessions] = useState<AnyType[]>([]);
     const [catalogWeeks, setCatalogWeeks] = useState<AnyType[]>([]);
     const [loading, setLoading] = useState(true);
     const [name, setName] = useState('');
@@ -23,52 +21,55 @@ export default function WorkoutEditor({ coachId, planId }: { coachId: string; pl
 
     useEffect(() => {
         async function load() {
-            const [exData, routineData, sessionData, weekData] = await Promise.all([
-                getExercises(),
-                getRoutines(coachId),
-                getSessionTemplates(coachId),
-                getWeekTemplates(coachId)
-            ]);
-            setExercises(exData);
-            setCatalogRoutines(routineData);
-            setCatalogSessions(sessionData);
-            setCatalogWeeks(weekData);
+            setLoading(true);
+            try {
+                const weekData = await getWeekTemplates(coachId);
+                setCatalogWeeks(weekData);
 
-            if (planId) {
-                const { getTrainingPlan } = await import('@/services/workoutActions');
-                const plan = await getTrainingPlan(planId);
-                if (plan) {
-                    setName(plan.name);
-                    setDescription(plan.description || '');
-                    // Map existing structure to editor state
-                    const mappedWeeks = plan.weeks.map((w: AnyType) => ({
-                        id: w.id,
-                        number: w.number,
-                        sessions: w.sessions.map((s: AnyType) => ({
-                            id: s.id,
-                            name: s.name,
-                            order: s.order,
-                            routines: s.routines.map((r: AnyType) => ({
-                                id: r.id,
-                                name: r.name,
-                                order: r.order,
-                                exercises: r.exercises.map((e: AnyType) => ({
-                                    id: e.id,
-                                    exerciseId: e.exerciseId,
-                                    exercise: e.exercise,
-                                    series: e.series,
-                                    reps: e.reps,
-                                    restingTime: e.restingTime,
-                                    order: e.order
+                if (planId) {
+                    const { getTrainingPlan } = await import('@/services/workoutActions');
+                    const plan = await getTrainingPlan(planId);
+                    if (plan) {
+                        setName(plan.name);
+                        setDescription(plan.description || '');
+                        // Map existing structure to editor state
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const mappedWeeks = plan.weeks.map((w: any) => ({
+                            id: w.id,
+                            number: w.number,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            sessions: w.sessions.map((s: any) => ({
+                                id: s.id,
+                                name: s.name,
+                                order: s.order,
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                routines: s.routines.map((r: any) => ({
+                                    id: r.id,
+                                    name: r.name,
+                                    order: r.order,
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                    exercises: r.exercises.map((e: any) => ({
+                                        id: e.id,
+                                        exerciseId: e.exerciseId,
+                                        exercise: e.exercise,
+                                        series: e.series,
+                                        reps: e.reps,
+                                        restingTime: e.restingTime,
+                                        machineId: e.machineId,
+                                        machine: e.machine,
+                                        order: e.order
+                                    }))
                                 }))
                             }))
-                        }))
-                    }));
-                    setWeeks(mappedWeeks);
+                        }));
+                        setWeeks(mappedWeeks);
+                    }
                 }
+            } catch (error) {
+                console.error("Error loading plan data:", error);
+            } finally {
+                setLoading(false);
             }
-
-            setLoading(false);
         }
         load();
     }, [coachId, planId]);
@@ -133,6 +134,8 @@ export default function WorkoutEditor({ coachId, planId }: { coachId: string; pl
                         series: e.series,
                         reps: e.reps,
                         restingTime: e.restingTime,
+                        machineId: e.machineId || e.machine?.id,
+                        machine: e.machine,
                         order: eIdx
                     }))
                 }))
@@ -141,68 +144,10 @@ export default function WorkoutEditor({ coachId, planId }: { coachId: string; pl
         setWeeks([...weeks, newWeek]);
     };
 
-    const addSessionToWeek = (weekIndex: number) => {
-        const newWeeks = [...weeks];
-        newWeeks[weekIndex].sessions.push({
-            name: `Sesión ${newWeeks[weekIndex].sessions.length + 1}`,
-            order: newWeeks[weekIndex].sessions.length,
-            routines: []
-        });
-        setWeeks(newWeeks);
-    };
 
 
-    const addRoutineToSession = (weekIndex: number, sessionIndex: number, routineTemplate: AnyType) => {
-        const newWeeks = [...weeks];
-        const newRoutine = {
-            name: routineTemplate.name,
-            order: newWeeks[weekIndex].sessions[sessionIndex].routines.length,
-            exercises: routineTemplate.exercises.map((item: AnyType, idx: number) => ({
-                exerciseId: item.exerciseId || item.exercise?.id,
-                exercise: item.exercise,
-                series: item.series,
-                reps: item.reps,
-                restingTime: item.restingTime,
-                order: idx
-            }))
-        };
-        newWeeks[weekIndex].sessions[sessionIndex].routines.push(newRoutine);
-        setWeeks(newWeeks);
-    };
 
-    const addSessionTemplateToWeek = (weekIndex: number, sessionTemplate: AnyType) => {
-        const newWeeks = [...weeks];
-        const newSession = {
-            name: sessionTemplate.name,
-            order: newWeeks[weekIndex].sessions.length,
-            routines: sessionTemplate.routines.map((r: AnyType, rIdx: number) => ({
-                name: r.name,
-                order: rIdx,
-                exercises: r.exercises.map((e: AnyType, eIdx: number) => ({
-                    exerciseId: e.exerciseId || e.exercise?.id,
-                    exercise: e.exercise,
-                    series: e.series,
-                    reps: e.reps,
-                    restingTime: e.restingTime,
-                    order: eIdx
-                }))
-            }))
-        };
-        newWeeks[weekIndex].sessions.push(newSession);
-        setWeeks(newWeeks);
-    };
 
-    const removeRoutine = (weekIndex: number, sessionIndex: number, routineIndex: number) => {
-        const newWeeks = [...weeks];
-        newWeeks[weekIndex].sessions[sessionIndex].routines.splice(routineIndex, 1);
-        setWeeks(newWeeks);
-    };
-
-    const updateRoutineName = (weekIndex: number, sessionIndex: number, routineIndex: number, name: string) => {
-        const newWeeks = [...weeks];
-        newWeeks[weekIndex].sessions[sessionIndex].routines[routineIndex].name = name;
-        setWeeks(newWeeks);
-    };
 
     if (loading) return <div style={{ padding: '2rem', color: '#fff' }}>Cargando editor...</div>;
 
@@ -215,7 +160,7 @@ export default function WorkoutEditor({ coachId, planId }: { coachId: string; pl
                     Selecciona un bloque para añadirlo a la sesión activa.
                 </p>
                 <div style={catalogListStyle}>
-                    <h4 style={{ color: '#888', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '10px' }}>Bloques de Sesiones (Plantillas)</h4>
+                    <h4 style={{ color: '#888', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '10px' }}>Bloques de Sesiones</h4>
                     {catalogWeeks.length === 0 ? (
                         <p style={{ color: '#444', textAlign: 'center', fontSize: '0.8rem' }}>No hay semanas.</p>
                     ) : catalogWeeks.map(w => (
@@ -227,29 +172,6 @@ export default function WorkoutEditor({ coachId, planId }: { coachId: string; pl
                         </div>
                     ))}
 
-                    <h4 style={{ color: '#888', fontSize: '0.75rem', textTransform: 'uppercase', marginTop: '20px', marginBottom: '10px' }}>Bloques de Rutina</h4>
-                    {catalogRoutines.length === 0 ? (
-                        <p style={{ color: '#444', textAlign: 'center', fontSize: '0.8rem' }}>No hay bloques.</p>
-                    ) : catalogRoutines.map(r => (
-                        <div key={r.id} style={catalogItemStyle} title="Añadir a una sesión">
-                            <h4 style={{ margin: '0 0 5px 0', color: '#fff', fontSize: '0.9rem' }}>{r.name}</h4>
-                            <p style={{ fontSize: '0.7rem', color: '#888', margin: 0 }}>
-                                {r.exercises?.length || 0} Ejercicios
-                            </p>
-                        </div>
-                    ))}
-
-                    <h4 style={{ color: '#888', fontSize: '0.75rem', textTransform: 'uppercase', marginTop: '20px', marginBottom: '10px' }}>Sesiones Completas</h4>
-                    {catalogSessions.length === 0 ? (
-                        <p style={{ color: '#444', textAlign: 'center', fontSize: '0.8rem' }}>No hay sesiones.</p>
-                    ) : catalogSessions.map(s => (
-                        <div key={s.id} style={{ ...catalogItemStyle, borderColor: '#ff4d4d33' }} title="Añadir sesión completa">
-                            <h4 style={{ margin: '0 0 5px 0', color: '#fff', fontSize: '0.9rem' }}>{s.name}</h4>
-                            <p style={{ fontSize: '0.7rem', color: '#888', margin: 0 }}>
-                                {s.routines?.length || 0} Rutinas
-                            </p>
-                        </div>
-                    ))}
                 </div>
             </aside>
 
@@ -301,41 +223,18 @@ export default function WorkoutEditor({ coachId, planId }: { coachId: string; pl
                                 <div key={wIdx} style={weekCardStyle}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                            <h3 style={{ margin: 0, color: '#ff4d4d' }}>Semana {week.number}</h3>
-                                            <button onClick={() => removeWeek(wIdx)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2rem', padding: '5px', borderRadius: '5px', transition: 'background 0.2s', backgroundColor: 'rgba(255,255,255,0.02)' }} title="Eliminar semana">🗑️</button>
+                                            <h3 style={{ margin: 0, color: '#ff4d4d' }}>Bloque (Semana {week.number})</h3>
+                                            <button onClick={() => removeWeek(wIdx)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2rem', padding: '5px', borderRadius: '5px', transition: 'background 0.2s', backgroundColor: 'rgba(255,255,255,0.02)' }} title="Eliminar bloque">🗑️</button>
                                         </div>
-                                        <button onClick={() => addSessionToWeek(wIdx)} style={smallButtonStyle}>+ Añadir Sesion</button>
                                     </div>
 
-                                    {/* ATAJOS DE SESIONES COMPLETAS */}
-                                    {catalogSessions.length > 0 && (
-                                        <div style={{ marginTop: '10px', display: 'flex', gap: '5px', overflowX: 'auto', padding: '5px 0' }}>
-                                            {catalogSessions.map(s => (
-                                                <button
-                                                    key={s.id}
-                                                    onClick={() => addSessionTemplateToWeek(wIdx, s)}
-                                                    style={{ ...quickAddButtonStyle, borderColor: '#ff4d4d' }}
-                                                >
-                                                    + {s.name} (Sesión)
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
+
 
                                     {week.sessions.map((session: AnyType, sIdx: number) => (
                                         <div key={sIdx} style={sessionCardStyle}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                                <input
-                                                    value={session.name}
-                                                    onChange={e => {
-                                                        const nw = [...weeks];
-                                                        nw[wIdx].sessions[sIdx].name = e.target.value;
-                                                        setWeeks(nw);
-                                                    }}
-                                                    style={minimalInputStyle}
-                                                />
-                                                <span style={{ fontSize: '0.7rem', color: '#666' }}>
-                                                    Añade bloques de la izquierda →
+                                                <span style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 'bold' }}>
+                                                    {session.name}
                                                 </span>
                                             </div>
 
@@ -347,12 +246,9 @@ export default function WorkoutEditor({ coachId, planId }: { coachId: string; pl
                                                 ) : session.routines.map((routine: AnyType, rIdx: number) => (
                                                     <div key={rIdx} style={routineCardStyle}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                            <input
-                                                                value={routine.name}
-                                                                onChange={e => updateRoutineName(wIdx, sIdx, rIdx, e.target.value)}
-                                                                style={minimalInputStyle}
-                                                            />
-                                                            <button onClick={() => removeRoutine(wIdx, sIdx, rIdx)} style={{ ...smallButtonStyle, backgroundColor: '#333', color: '#ff4d4d' }}>✕</button>
+                                                            <span style={{ fontSize: '0.85rem', color: '#ccc' }}>
+                                                                {routine.name}
+                                                            </span>
                                                         </div>
                                                         <div style={{ fontSize: '0.8rem', color: '#888' }}>
                                                             {routine.exercises.map((ex: AnyType, iidx: number) => (
@@ -364,18 +260,6 @@ export default function WorkoutEditor({ coachId, planId }: { coachId: string; pl
                                                     </div>
                                                 ))}
 
-                                                {/* ATAJO DE CLICK: Si hay un bloque seleccionado en el catálogo, lo añadimos */}
-                                                <div style={{ marginTop: '10px', display: 'flex', gap: '5px', overflowX: 'auto' }}>
-                                                    {catalogRoutines.map(r => (
-                                                        <button
-                                                            key={r.id}
-                                                            onClick={() => addRoutineToSession(wIdx, sIdx, r)}
-                                                            style={quickAddButtonStyle}
-                                                        >
-                                                            + {r.name}
-                                                        </button>
-                                                    ))}
-                                                </div>
                                             </div>
                                         </div>
                                     ))}

@@ -1,11 +1,12 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, unstable_noStore as noStore } from 'next/cache';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 
 // Exercise Actions
 export async function getExercises() {
+    noStore();
     try {
         return await prisma.exercise.findMany({
             include: {
@@ -24,6 +25,7 @@ export async function createExercise(formData: FormData) {
     const description = formData.get('description') as string;
     const observations = formData.get('observations') as string;
     const videoFile = formData.get('videoFile') as File | null;
+    const videoUrlInput = formData.get('videoUrl') as string;
     const machineIds = formData.getAll('machineIds') as string[];
 
     let videoUrl = '';
@@ -54,19 +56,21 @@ export async function createExercise(formData: FormData) {
             }
         }
 
-        await prisma.exercise.create({
+        const exercise = await prisma.exercise.create({
             data: {
                 name,
                 description,
                 observations,
-                videoFile: videoUrl,
+                videoFile: videoUrl || null,
+                videoUrl: videoUrlInput || null,
                 machines: {
                     connect: machineIds.map(id => ({ id }))
                 }
-            }
+            },
+            include: { machines: true }
         });
         revalidatePath('/');
-        return { success: true };
+        return { success: true, exercise };
     } catch (error: unknown) {
         console.error('Error in createExercise:', error);
         return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
@@ -78,6 +82,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
     const description = formData.get('description') as string;
     const observations = formData.get('observations') as string;
     const videoFile = formData.get('videoFile') as File | null;
+    const videoUrlInput = formData.get('videoUrl') as string;
     const machineIds = formData.getAll('machineIds') as string[];
 
     try {
@@ -86,6 +91,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
             name,
             description,
             observations,
+            videoUrl: videoUrlInput || null,
             machines: {
                 set: machineIds.map(id => ({ id }))
             }
@@ -137,6 +143,7 @@ export async function deleteExercise(id: string) {
 
 // Machine Actions
 export async function getMachines() {
+    noStore();
     try {
         return await prisma.machine.findMany({
             orderBy: { number: 'asc' }
@@ -179,7 +186,7 @@ export async function createMachine(formData: FormData) {
             }
         }
 
-        await prisma.machine.create({
+        const machine = await prisma.machine.create({
             data: {
                 number,
                 description,
@@ -188,7 +195,7 @@ export async function createMachine(formData: FormData) {
             }
         });
         revalidatePath('/');
-        return { success: true };
+        return { success: true, machine };
     } catch (error: unknown) {
         console.error('Error creating machine:', error);
         return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
@@ -229,12 +236,12 @@ export async function updateMachine(machineId: string, formData: FormData) {
             }
         }
 
-        await prisma.machine.update({
+        const machine = await prisma.machine.update({
             where: { id: machineId },
             data: updateData
         });
         revalidatePath('/');
-        return { success: true };
+        return { success: true, machine };
     } catch (error: unknown) {
         console.error('Error updating machine:', error);
         return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
@@ -292,7 +299,11 @@ export async function getTrainingPlan(id: string, userId?: string) {
                 include: {
                     exercises: {
                         include: {
-                            exercise: true,
+                            exercise: {
+                                include: {
+                                    machines: true
+                                }
+                            },
                             machine: true
                         },
                         orderBy: { order: 'asc' }
@@ -394,10 +405,12 @@ export async function createTrainingPlan(data: TrainingPlanData) {
                                 name: String(session.name),
                                 order: sIdx,
                                 dayNumber: 0, // Keeping for schema compatibility but not used for grouping
+                                isTemplate: false,
                                 routines: {
                                     create: (session.routines || []).map((routine, rIdx) => ({
                                         name: String(routine.name),
                                         order: rIdx,
+                                        isTemplate: false,
                                         exercises: {
                                             create: (routine.exercises || routine.items || []).map((item, eIdx) => ({
                                                 series: parseInt(String(item.series)) || 3,
@@ -447,10 +460,12 @@ export async function updateTrainingPlan(id: string, data: TrainingPlanData) {
                                     name: String(session.name),
                                     order: sIdx,
                                     dayNumber: 0,
+                                    isTemplate: false,
                                     routines: {
                                         create: (session.routines || []).map((routine, rIdx) => ({
                                             name: String(routine.name),
                                             order: rIdx,
+                                            isTemplate: false,
                                             exercises: {
                                                 create: (routine.exercises || routine.items || []).map((item, eIdx) => ({
                                                     series: parseInt(String(item.series)) || 3,
@@ -495,13 +510,18 @@ export async function getRoutines(coachId?: string) {
     try {
         return await prisma.routine.findMany({
             where: {
+                isTemplate: true,
                 sessionId: null,
                 coachId: coachId || undefined
             },
             include: {
                 exercises: {
                     include: {
-                        exercise: true,
+                        exercise: {
+                            include: {
+                                machines: true
+                            }
+                        },
                         machine: true
                     },
                     orderBy: { order: 'asc' }
@@ -541,6 +561,7 @@ export async function createRoutine(data: RoutineData & { coachId?: string }) {
                 description: data.description || null,
                 coachId: data.coachId || null,
                 order: 0,
+                isTemplate: true,
                 exercises: {
                     create: (data.exercises || data.items || []).map((item, index) => ({
                         series: parseInt(String(item.series)) || 3,
@@ -573,6 +594,7 @@ export async function updateRoutine(routineId: string, data: RoutineData) {
                     name: data.name,
                     description: data.description || undefined,
                     order: 0,
+                    isTemplate: true,
                     exercises: {
                         create: (data.exercises || data.items || []).map((item, index) => ({
                             series: parseInt(String(item.series)) || 3,
@@ -612,6 +634,7 @@ export async function getSessionTemplates(coachId: string) {
     try {
         return await prisma.session.findMany({
             where: {
+                isTemplate: true,
                 weekId: null,
                 coachId: coachId
             },
@@ -651,11 +674,13 @@ export async function createSessionTemplate(data: SessionData & { coachId: strin
                 weekId: null,
                 dayNumber: null,
                 order: 0,
+                isTemplate: true,
                 routines: {
                     create: data.routines.map((r, rIdx) => ({
                         name: r.name,
                         order: rIdx,
                         coachId: data.coachId,
+                        isTemplate: false,
                         exercises: {
                             create: (r.exercises || r.items || []).map((e, eIdx) => ({
                                 series: parseInt(String(e.series)) || 3,
@@ -693,6 +718,7 @@ export async function updateSessionTemplate(sessionId: string, data: SessionData
                             name: r.name,
                             order: rIdx,
                             coachId: data.coachId,
+                            isTemplate: false,
                             exercises: {
                                 create: (r.exercises || r.items || []).map((e, eIdx) => ({
                                     series: parseInt(String(e.series)) || 3,
@@ -734,6 +760,7 @@ export async function getWeekTemplates(coachId: string) {
     try {
         return await prisma.week.findMany({
             where: {
+                isTemplate: true,
                 trainingPlanId: null,
                 coachId: coachId
             },
@@ -744,7 +771,11 @@ export async function getWeekTemplates(coachId: string) {
                             include: {
                                 exercises: {
                                     include: {
-                                        exercise: true,
+                                        exercise: {
+                                            include: {
+                                                machines: true
+                                            }
+                                        },
                                         machine: true
                                     },
                                     orderBy: { order: 'asc' }
@@ -782,17 +813,20 @@ export async function createWeekTemplate(data: WeekUpdateData) {
                 name: String(data.name || 'Sin nombre'),
                 number: 0,
                 coachId: coachId,
+                isTemplate: true,
                 sessions: {
                     create: (data.sessions || []).filter((s) => s && s.name).map((s, sIdx) => ({
                         name: String(s.name),
                         order: sIdx,
                         dayNumber: 0,
                         coachId: coachId,
+                        isTemplate: false,
                         routines: {
                             create: (s.routines || []).filter((r) => r && r.name).map((r, rIdx) => ({
                                 name: String(r.name),
                                 order: rIdx,
                                 coachId: coachId,
+                                isTemplate: false,
                                 exercises: {
                                     create: (r.exercises || r.items || []).filter((e) => e && (e.exerciseId || e.exercise?.id)).map((e, eIdx) => ({
                                         series: parseInt(String(e.series)) || 3,
@@ -850,6 +884,7 @@ export async function updateWeekTemplate(weekId: string, data: WeekUpdateData) {
                                     name: String(r.name),
                                     order: rIdx,
                                     coachId: coachId,
+                                    isTemplate: false,
                                     exercises: {
                                         create: (r.exercises || r.items || []).filter((e) => e && (e.exerciseId || e.exercise?.id)).map((e, eIdx) => ({
                                             series: parseInt(String(e.series)) || 3,
@@ -928,5 +963,58 @@ export async function toggleSessionCompletion(sessionId: string, completed: bool
     } catch (error: unknown) {
         console.error('Error toggling session completion:', error);
         return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
+    }
+}
+
+export async function logExerciseProgress(
+    userId: string,
+    sessionId: string,
+    exerciseId: string,
+    seriesIndex: number,
+    weight: number,
+    reps?: number
+) {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (prisma as any).exerciseLog.upsert({
+            where: {
+                userId_sessionId_exerciseId_seriesIndex: {
+                    userId,
+                    sessionId,
+                    exerciseId, seriesIndex
+                }
+            },
+            update: {
+                weight,
+                reps: reps ?? undefined,
+            },
+            create: {
+                userId,
+                sessionId,
+                exerciseId,
+                seriesIndex,
+                weight,
+                reps: reps ?? null,
+            }
+        });
+        return { success: true };
+    } catch (error: unknown) {
+        console.error('Error logging exercise progress:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
+    }
+}
+
+export async function getExerciseLogs(userId: string, sessionId: string) {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (prisma as any).exerciseLog.findMany({
+            where: {
+                userId,
+                sessionId,
+            }
+        });
+    } catch (error: unknown) {
+        console.error('Error fetching exercise logs:', error);
+        return [];
     }
 }

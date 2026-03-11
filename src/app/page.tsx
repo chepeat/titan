@@ -4,6 +4,7 @@ import AdminDashboard from '@/components/AdminDashboard';
 import TrainerDashboard from '@/components/TrainerDashboard';
 import { logout } from '@/services/authActions';
 import UserPlanView from '@/components/UserPlanView';
+import Image from 'next/image';
 
 export default async function Home() {
   const supabase = await createClient();
@@ -33,7 +34,10 @@ export default async function Home() {
   return (
     <main style={containerStyle}>
       <header style={headerStyle}>
-        <h1 style={titleStyle}>Titan Club - {dbUser.role}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Image src="/logo.png" alt="Titan Club" width={40} height={40} style={{ borderRadius: '8px', objectFit: 'contain' }} />
+          <h1 style={titleStyle}>Titan Club - {dbUser.role}</h1>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <span style={{ color: '#888' }}>{dbUser.name || dbUser.email}</span>
           <form action={logout}>
