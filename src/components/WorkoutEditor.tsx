@@ -347,8 +347,6 @@ const routineDropZoneStyle: React.CSSProperties = {
     border: '1px solid #333'
 };
 
-};
-
 const headerStyle = {
     display: 'flex',
     justifyContent: 'space-between',
