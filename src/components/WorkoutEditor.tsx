@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getExercises, getRoutines, getSessionTemplates, getWeekTemplates, createTrainingPlan } from '@/services/workoutActions';
+import { getWeekTemplates, createTrainingPlan } from '@/services/workoutActions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -347,15 +347,6 @@ const routineDropZoneStyle: React.CSSProperties = {
     border: '1px solid #333'
 };
 
-const quickAddButtonStyle: React.CSSProperties = {
-    whiteSpace: 'nowrap',
-    backgroundColor: '#222',
-    color: '#aaa',
-    padding: '4px 10px',
-    borderRadius: '4px',
-    border: '1px solid #333',
-    fontSize: '0.75rem',
-    cursor: 'pointer'
 };
 
 const headerStyle = {
@@ -433,15 +424,6 @@ const routineCardStyle: React.CSSProperties = {
     border: '1px solid #555'
 };
 
-const minimalInputStyle = {
-    background: 'none',
-    border: '1px solid #444',
-    color: '#fff',
-    padding: '6px 10px',
-    borderRadius: '6px',
-    fontSize: '0.9rem',
-    width: '200px'
-};
 
 const addWeekButtonStyle = {
     backgroundColor: '#111',
@@ -456,12 +438,3 @@ const addWeekButtonStyle = {
     transition: 'all 0.2s'
 };
 
-const smallButtonStyle = {
-    backgroundColor: '#222',
-    color: '#fff',
-    padding: '6px 12px',
-    border: '1px solid #333',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.75rem'
-};

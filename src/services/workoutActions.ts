@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath, unstable_noStore as noStore } from 'next/cache';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { ExerciseType } from '@prisma/client';
 
 // Exercise Actions
 export async function getExercises() {
@@ -62,7 +63,7 @@ export async function createExercise(formData: FormData) {
                 name,
                 description,
                 observations,
-                type: type as any,
+                type: type as ExerciseType,
                 videoFile: videoUrl || null,
                 videoUrl: videoUrlInput || null,
                 machines: {
@@ -90,12 +91,12 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
 
     try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const updateData: any = {
+        const updateData: Record<string, any> = {
             name,
             description,
             observations,
             videoUrl: videoUrlInput || null,
-            type: type ? (type as any) : undefined,
+            type: type ? (type as ExerciseType) : undefined,
             machines: {
                 set: machineIds.map(id => ({ id }))
             }

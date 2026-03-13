@@ -35,8 +35,8 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
             ]);
             setPlan(planData);
             if (Array.isArray(allExercises)) {
-                setWarmupExercises(allExercises.filter((ex: any) => ex.type === 'WARMUP'));
-                setStretchExercises(allExercises.filter((ex: any) => ex.type === 'STRETCH'));
+                setWarmupExercises(allExercises.filter((ex: { type: string }) => ex.type === 'WARMUP'));
+                setStretchExercises(allExercises.filter((ex: { type: string }) => ex.type === 'STRETCH'));
             }
             setLoading(false);
         }
@@ -208,8 +208,6 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                         </div>
                                         <div style={exerciseListStyle}>
                                             {routine.exercises.map((item: AnyType) => {
-                                                const videoUrl = item.exercise?.videoFile || item.exercise?.videoUrl;
-
                                                 return (
                                                     <div key={item.id} style={exerciseItemStyle}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
