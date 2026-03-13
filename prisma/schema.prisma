@@ -99,6 +99,7 @@ model Exercise {
   videoFile    String?
   videoUrl     String?
   observations String?
+  type         ExerciseType  @default(TRAINING)
   routines     RoutineItem[]
   machines     Machine[]     @relation("ExerciseMachines")
   exerciseLogs ExerciseLog[]
@@ -112,6 +113,12 @@ model Machine {
   observations String?
   routines     RoutineItem[]
   exercises    Exercise[]    @relation("ExerciseMachines")
+}
+
+enum ExerciseType {
+  TRAINING
+  WARMUP
+  STRETCH
 }
 
 enum Role {

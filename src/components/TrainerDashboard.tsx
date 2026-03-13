@@ -428,6 +428,7 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
             if (exerciseFormRef.current) {
                 const form = exerciseFormRef.current;
                 (form.elements.namedItem('name') as HTMLInputElement).value = ex.name || '';
+                (form.elements.namedItem('type') as HTMLSelectElement).value = ex.type || 'TRAINING';
                 (form.elements.namedItem('description') as HTMLTextAreaElement).value = ex.description || '';
                 (form.elements.namedItem('observations') as HTMLTextAreaElement).value = ex.observations || '';
                 form.scrollIntoView({ behavior: 'smooth' });
@@ -899,9 +900,19 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                         <section style={managementSectionStyle}>
                             <h3 style={sectionTitleStyle}>{editingExercise ? 'Editando Ejercicio' : 'Administración de Ejercicios'}</h3>
                             <form ref={exerciseFormRef} onSubmit={handleExerciseSubmit} style={formStyle}>
-                                <div style={{ marginBottom: '15px' }}>
-                                    <label style={labelStyle}>Nombre del Ejercicio *</label>
-                                    <input type="text" name="name" placeholder="Ej: Press de Banca" required style={inputStyle} />
+                                <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                                    <div style={{ flex: 1.5 }}>
+                                        <label style={labelStyle}>Nombre del Ejercicio *</label>
+                                        <input type="text" name="name" placeholder="Ej: Press de Banca" required style={inputStyle} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={labelStyle}>Tipo de Ejercicio</label>
+                                        <select name="type" style={inputStyle} defaultValue={editingExercise?.type || 'TRAINING'}>
+                                            <option value="TRAINING">Entrenamiento</option>
+                                            <option value="WARMUP">Calentamiento</option>
+                                            <option value="STRETCH">Estiramiento</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
                                     <div style={{ flex: 1 }}>
@@ -990,8 +1001,19 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                         {exercises.map(ex => (
                                             <div key={ex.id} style={listItemStyle}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '100%', overflow: 'hidden' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                        <strong>{ex.name}</strong>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            <strong>{ex.name}</strong>
+                                                            <span style={{ 
+                                                                fontSize: '0.7rem', 
+                                                                padding: '2px 8px', 
+                                                                borderRadius: '4px', 
+                                                                backgroundColor: ex.type === 'WARMUP' ? '#4a90e2' : ex.type === 'STRETCH' ? '#f5a623' : '#333',
+                                                                color: '#fff'
+                                                            }}>
+                                                                {ex.type === 'WARMUP' ? 'Calentamiento' : ex.type === 'STRETCH' ? 'Estiramiento' : 'Entrenamiento'}
+                                                            </span>
+                                                        </div>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                                             <span style={{ fontSize: '0.8rem', color: '#666' }}>
                                                                 {ex.machines?.length > 0 ? ex.machines.map((m: AnyType) => `Máquina ${m.number}`).join(', ') : 'Sin máquina'}

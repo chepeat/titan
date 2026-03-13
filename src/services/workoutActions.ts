@@ -26,6 +26,7 @@ export async function createExercise(formData: FormData) {
     const observations = formData.get('observations') as string;
     const videoFile = formData.get('videoFile') as File | null;
     const videoUrlInput = formData.get('videoUrl') as string;
+    const type = (formData.get('type') as string) || 'TRAINING';
     const machineIds = formData.getAll('machineIds') as string[];
 
     let videoUrl = '';
@@ -61,6 +62,7 @@ export async function createExercise(formData: FormData) {
                 name,
                 description,
                 observations,
+                type: type as any,
                 videoFile: videoUrl || null,
                 videoUrl: videoUrlInput || null,
                 machines: {
@@ -83,6 +85,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
     const observations = formData.get('observations') as string;
     const videoFile = formData.get('videoFile') as File | null;
     const videoUrlInput = formData.get('videoUrl') as string;
+    const type = formData.get('type') as string;
     const machineIds = formData.getAll('machineIds') as string[];
 
     try {
@@ -92,6 +95,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
             description,
             observations,
             videoUrl: videoUrlInput || null,
+            type: type ? (type as any) : undefined,
             machines: {
                 set: machineIds.map(id => ({ id }))
             }

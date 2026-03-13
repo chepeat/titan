@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getTrainingPlan, getExerciseLogs } from '@/services/workoutActions';
+import { getTrainingPlan, getExerciseLogs, getExercises } from '@/services/workoutActions';
 import RoutineDetailView from './RoutineDetailView';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,13 +22,22 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
     const [activeSession, setActiveSession] = useState<AnyType | null>(null);
     const [activeRoutineIdx, setActiveRoutineIdx] = useState<number | null>(null);
     const [currentLogs, setCurrentLogs] = useState<AnyType[]>([]);
+    const [warmupExercises, setWarmupExercises] = useState<AnyType[]>([]);
+    const [stretchExercises, setStretchExercises] = useState<AnyType[]>([]);
+    const [extraView, setExtraView] = useState<'WARMUP' | 'STRETCH' | null>(null);
 
     useEffect(() => {
         async function load() {
             setLoading(true);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const data: any = await getTrainingPlan(planId, userId);
-            setPlan(data);
+            const [planData, allExercises] = await Promise.all([
+                getTrainingPlan(planId, userId),
+                getExercises()
+            ]);
+            setPlan(planData);
+            if (Array.isArray(allExercises)) {
+                setWarmupExercises(allExercises.filter((ex: any) => ex.type === 'WARMUP'));
+                setStretchExercises(allExercises.filter((ex: any) => ex.type === 'STRETCH'));
+            }
             setLoading(false);
         }
         if (planId && userId) load();
@@ -161,8 +170,22 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                             onChange={() => handleToggleCompletion(session.id, !!session.isCompleted)}
                                             style={{ cursor: 'pointer', accentColor: '#4ade80', width: '18px', height: '18px' }}
                                         />
-                                        Hecho
                                     </label>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
+                                    <button 
+                                        onClick={() => setExtraView('WARMUP')}
+                                        style={{ ...extraButtonStyle, backgroundColor: '#4a90e2' }}
+                                    >
+                                        🔥 Calentamiento
+                                    </button>
+                                    <button 
+                                        onClick={() => setExtraView('STRETCH')}
+                                        style={{ ...extraButtonStyle, backgroundColor: '#f5a623' }}
+                                    >
+                                        🧘 Estiramientos
+                                    </button>
                                 </div>
 
                                 <button
@@ -217,6 +240,46 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                     </div>
                 )}
             </div>
+
+            {/* Extra View Modal (Warmup/Stretch) */}
+            {extraView && (
+                <div style={modalOverlayStyle} onClick={() => setExtraView(null)}>
+                    <div style={{ ...modalContentStyle, maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+                        <button style={closeButtonStyle} onClick={() => setExtraView(null)}>✕</button>
+                        <h3 style={{ ...sessionTitleStyle, borderBottom: '1px solid #333', marginBottom: '20px' }}>
+                            {extraView === 'WARMUP' ? 'Calentamiento' : 'Estiramientos'}
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '70vh', overflowY: 'auto', paddingRight: '10px' }}>
+                            {(extraView === 'WARMUP' ? warmupExercises : stretchExercises).map((ex: AnyType) => (
+                                <div key={ex.id} style={{ ...exerciseItemStyle, cursor: 'default' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={exerciseNameStyle}>{ex.name}</div>
+                                        {(ex.videoFile || ex.videoUrl) && (
+                                            <button 
+                                                onClick={() => setActiveVideoUrl(ex.videoFile || ex.videoUrl)}
+                                                style={videoIconButtonStyle}
+                                            >
+                                                📹 Ver vídeo
+                                            </button>
+                                        )}
+                                    </div>
+                                    {ex.description && <p style={{ ...exerciseDetailsStyle, margin: '4px 0' }}>{ex.description}</p>}
+                                    {ex.machines?.length > 0 && (
+                                        <div style={{ fontSize: '0.75rem', color: '#ff4d4d', marginTop: '4px' }}>
+                                            📍 Máquina {ex.machines[0].number}: {ex.machines[0].description}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            {(extraView === 'WARMUP' ? warmupExercises : stretchExercises).length === 0 && (
+                                <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                                    No hay ejercicios de {extraView === 'WARMUP' ? 'calentamiento' : 'estiramiento'} cargados.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Video Modal */}
             {activeVideoUrl && (
@@ -459,4 +522,19 @@ const videoPlayerStyle: React.CSSProperties = {
     borderRadius: '8px',
     backgroundColor: '#000',
     maxHeight: '70vh',
+};
+const extraButtonStyle: React.CSSProperties = {
+    flex: 1,
+    padding: '10px',
+    borderRadius: '10px',
+    border: 'none',
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: '0.9rem',
+    cursor: 'pointer',
+    transition: 'transform 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
 };
