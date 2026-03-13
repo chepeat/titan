@@ -292,16 +292,14 @@ const weekButtonStyle: React.CSSProperties = {
 };
 
 const weekBodyStyle: React.CSSProperties = {
-    backgroundColor: '#111',
-    borderRadius: '16px',
-    padding: '2rem',
-    border: '1px solid #222',
+    padding: '1rem 0',
 };
 
 const sessionsGridStyle: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
     gap: '1.5rem',
+    justifyContent: 'center',
 };
 
 const sessionCardStyle: React.CSSProperties = {
@@ -355,6 +353,8 @@ const prominentMachineBadgeStyle: React.CSSProperties = {
     fontSize: '0.7rem',
     fontWeight: '900',
     letterSpacing: '0.5px',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
 };
 
 const exerciseNameStyle: React.CSSProperties = {
