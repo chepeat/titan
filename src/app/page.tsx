@@ -15,8 +15,14 @@ export default async function Home() {
   }
 
   // Buscar el rol del usuario en nuestra base de datos Prisma
-  const dbUser = await prisma.user.findUnique({
-    where: { email: user.email },
+  // Se usa findFirst con OR para ser resistente a diferencias de mayúsculas/minúsculas en el email
+  const dbUser = await prisma.user.findFirst({
+    where: { 
+      OR: [
+        { supabaseId: user.id },
+        { email: { equals: user.email, mode: 'insensitive' } }
+      ]
+    },
   });
 
   if (!dbUser) {
