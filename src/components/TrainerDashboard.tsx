@@ -27,6 +27,7 @@ import {
     deleteMachine
 } from '@/services/workoutActions';
 import { getMembers, assignPlanToUser } from '@/services/userActions';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import Image from 'next/image';
 import WorkoutPDFExporter from './WorkoutPDFExporter';
@@ -139,6 +140,37 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
         setUploading(true);
         setMessage('');
         const formData = new FormData(e.currentTarget);
+        const imageFile = formData.get('imageFile') as File | null;
+
+        if (imageFile && imageFile.size > 0 && imageFile.name !== 'undefined') {
+            try {
+                const supabase = createClient();
+                const fileExt = imageFile.name.split('.').pop();
+                const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+                const filePath = `images/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('machines')
+                    .upload(filePath, imageFile);
+
+                if (uploadError) {
+                    throw uploadError;
+                }
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('machines')
+                    .getPublicUrl(filePath);
+
+                // Reemplazamos el archivo por la URL para el servidor
+                formData.set('imageFile', ''); 
+                formData.set('imageUrl', publicUrl);
+            } catch (err) {
+                console.error('Error subiendo imagen:', err);
+                setMessage('Error al subir la imagen. Por favor, intenta de nuevo.');
+                setUploading(false);
+                return;
+            }
+        }
 
         let res;
         if (editingMachine) {
@@ -171,6 +203,37 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
         setUploading(true);
         setMessage('');
         const formData = new FormData(e.currentTarget);
+        const videoFile = formData.get('videoFile') as File | null;
+
+        if (videoFile && videoFile.size > 0 && videoFile.name !== 'undefined') {
+            try {
+                const supabase = createClient();
+                const fileExt = videoFile.name.split('.').pop();
+                const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+                const filePath = `videos/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('exercises')
+                    .upload(filePath, videoFile);
+
+                if (uploadError) {
+                    throw uploadError;
+                }
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('exercises')
+                    .getPublicUrl(filePath);
+
+                // Reemplazamos el archivo por la URL para el servidor
+                formData.set('videoFile', ''); 
+                formData.set('videoFileUrl', publicUrl);
+            } catch (err) {
+                console.error('Error subiendo vídeo:', err);
+                setMessage('Error al subir el vídeo. El archivo puede ser demasiado grande o hubo un error de red.');
+                setUploading(false);
+                return;
+            }
+        }
 
         let res;
         if (editingExercise) {

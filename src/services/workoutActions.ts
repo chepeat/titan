@@ -27,13 +27,14 @@ export async function createExercise(formData: FormData) {
     const observations = formData.get('observations') as string;
     const videoFile = formData.get('videoFile') as File | null;
     const videoUrlInput = formData.get('videoUrl') as string;
+    const videoFileUrl = formData.get('videoFileUrl') as string; // URL from client-side upload
     const type = (formData.get('type') as string) || 'TRAINING';
     const machineIds = formData.getAll('machineIds') as string[];
 
-    let videoUrl = '';
+    let videoUrl = videoFileUrl || '';
 
     try {
-        if (videoFile && videoFile.size > 0 && videoFile.name !== 'undefined') {
+        if (!videoUrl && videoFile && videoFile.size > 0 && videoFile.name !== 'undefined') {
             const supabase = await createAdminClient();
 
             // Note: The bucket 'exercises' must exist and be public or have appropriate policies.
@@ -86,6 +87,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
     const observations = formData.get('observations') as string;
     const videoFile = formData.get('videoFile') as File | null;
     const videoUrlInput = formData.get('videoUrl') as string;
+    const videoFileUrl = formData.get('videoFileUrl') as string; // URL from client-side upload
     const type = formData.get('type') as string;
     const machineIds = formData.getAll('machineIds') as string[];
 
@@ -102,7 +104,9 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
             }
         };
 
-        if (videoFile && videoFile.size > 0 && videoFile.name !== 'undefined') {
+        if (videoFileUrl) {
+            updateData.videoFile = videoFileUrl;
+        } else if (videoFile && videoFile.size > 0 && videoFile.name !== 'undefined') {
             const supabase = await createAdminClient();
             const fileExt = videoFile.name.split('.').pop();
             const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
@@ -164,11 +168,12 @@ export async function createMachine(formData: FormData) {
     const description = formData.get('description') as string;
     const observations = formData.get('observations') as string;
     const imageFile = formData.get('imageFile') as File | null;
+    const imageUrlInput = formData.get('imageUrl') as string;
 
-    let imageUrl = '';
+    let imageUrl = imageUrlInput || '';
 
     try {
-        if (imageFile && imageFile.size > 0 && imageFile.name !== 'undefined') {
+        if (!imageUrl && imageFile && imageFile.size > 0 && imageFile.name !== 'undefined') {
             const supabase = await createAdminClient();
             const fileExt = imageFile.name.split('.').pop();
             const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
@@ -212,6 +217,7 @@ export async function updateMachine(machineId: string, formData: FormData) {
     const description = formData.get('description') as string;
     const observations = formData.get('observations') as string;
     const imageFile = formData.get('imageFile') as File | null;
+    const imageUrlInput = formData.get('imageUrl') as string;
 
     try {
         const updateData: { number: number; description: string; observations: string; imageFile?: string } = {
@@ -220,7 +226,9 @@ export async function updateMachine(machineId: string, formData: FormData) {
             observations
         };
 
-        if (imageFile && imageFile.size > 0 && imageFile.name !== 'undefined') {
+        if (imageUrlInput) {
+            updateData.imageFile = imageUrlInput;
+        } else if (imageFile && imageFile.size > 0 && imageFile.name !== 'undefined') {
             const supabase = await createAdminClient();
             const fileExt = imageFile.name.split('.').pop();
             const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;

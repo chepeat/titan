@@ -17,6 +17,7 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
     const [loading, setLoading] = useState(true);
     const [activeWeekIdx, setActiveWeekIdx] = useState(0);
     const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
     // Navigation state for Routine Detail
     const [activeSession, setActiveSession] = useState<AnyType | null>(null);
@@ -131,108 +132,153 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
             </div>
 
             {/* Week Selector */}
-            <div style={weekSelectorStyle}>
-                {plan.weeks.map((week: AnyType, idx: number) => (
-                    <button
-                        key={week.id}
-                        onClick={() => setActiveWeekIdx(idx)}
-                        style={{
-                            ...weekButtonStyle,
-                            backgroundColor: activeWeekIdx === idx ? '#ff4d4d' : '#222',
-                            color: activeWeekIdx === idx ? '#fff' : '#888',
-                        }}
-                    >
-                        Semana {week.number}
-                    </button>
-                ))}
-            </div>
+            {!selectedSessionId && (
+                <div style={weekSelectorStyle}>
+                    {plan.weeks.map((week: AnyType, idx: number) => (
+                        <button
+                            key={week.id}
+                            onClick={() => {
+                                setActiveWeekIdx(idx);
+                                setSelectedSessionId(null);
+                            }}
+                            style={{
+                                ...weekButtonStyle,
+                                backgroundColor: activeWeekIdx === idx ? '#ff4d4d' : '#222',
+                                color: activeWeekIdx === idx ? '#fff' : '#888',
+                            }}
+                        >
+                            Semana {week.number}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {/* Active Week Content */}
             <div style={weekBodyStyle}>
                 {plan.weeks[activeWeekIdx]?.sessions.length === 0 ? (
                     <p style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>No hay sesiones configuradas para esta semana.</p>
+                ) : selectedSessionId ? (
+                    // DETAIL VIEW
+                    (() => {
+                        const session = plan.weeks[activeWeekIdx].sessions.find((s: AnyType) => s.id === selectedSessionId);
+                        if (!session) return null;
+                        return (
+                            <div>
+                                <button
+                                    onClick={() => setSelectedSessionId(null)}
+                                    style={backButtonStyle}
+                                >
+                                    ← Volver a las semanas
+                                </button>
+                                <div style={{
+                                    ...sessionCardStyle,
+                                    borderColor: session.isCompleted ? '#4ade80' : '#333',
+                                    backgroundColor: session.isCompleted ? 'rgba(74, 222, 128, 0.05)' : '#0a0a0a',
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #222', paddingBottom: '0.75rem' }}>
+                                        <h3 style={{ ...sessionTitleStyle, borderBottom: 'none', margin: 0, paddingBottom: 0 }}>
+                                            {session.name}
+                                        </h3>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: session.isCompleted ? '#4ade80' : '#888' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={!!session.isCompleted}
+                                                onChange={() => handleToggleCompletion(session.id, !!session.isCompleted)}
+                                                style={{ cursor: 'pointer', accentColor: '#4ade80', width: '18px', height: '18px' }}
+                                            />
+                                        </label>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
+                                        <button 
+                                            onClick={() => setExtraView('WARMUP')}
+                                            style={{ ...extraButtonStyle, backgroundColor: '#4a90e2' }}
+                                        >
+                                            🔥 Calentamiento
+                                        </button>
+                                        <button 
+                                            onClick={() => setExtraView('STRETCH')}
+                                            style={{ ...extraButtonStyle, backgroundColor: '#f5a623' }}
+                                        >
+                                            🧘 Estiramientos
+                                        </button>
+                                    </div>
+
+                                    <button
+                                        onClick={() => handleStartRoutine(session, 0)}
+                                        style={startSessionButtonStyle}
+                                    >
+                                        {session.isCompleted ? 'Repetir Entrenamiento' : 'Comenzar Entrenamiento'}
+                                    </button>
+
+                                    {session.routines.map((routine: AnyType, rIdx: number) => (
+                                        <div key={routine.id} style={routineBoxStyle}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                                <h4 style={{ ...routineTitleStyle, margin: 0 }}>{routine.name}</h4>
+                                                <button
+                                                    onClick={() => handleStartRoutine(session, rIdx)}
+                                                    style={startRoutineSmallButtonStyle}
+                                                >
+                                                    Ir a rutina
+                                                </button>
+                                            </div>
+                                            <div style={exerciseListStyle}>
+                                                {routine.exercises.map((item: AnyType) => {
+                                                    return (
+                                                        <div key={item.id} style={exerciseItemStyle}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                                                <div style={exerciseNameStyle}>{item.exercise?.name}</div>
+                                                                {(item.machine?.number || item.exercise?.machines?.[0]?.number) && (
+                                                                    <div style={prominentMachineBadgeStyle}>
+                                                                        MÁQUINA {item.machine?.number || item.exercise.machines[0].number}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <div style={exerciseDetailsStyle}>
+                                                                    <span>{item.series} series</span>
+                                                                    <span>•</span>
+                                                                    <span>{Array.isArray(item.reps) ? item.reps.join('-') : item.reps} reps</span>
+                                                                    <span>•</span>
+                                                                    <span>{item.restingTime}s desc.</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })()
                 ) : (
-                    <div style={sessionsGridStyle}>
+                    // LIST VIEW
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {plan.weeks[activeWeekIdx].sessions.map((session: AnyType) => (
                             <div key={session.id} style={{
                                 ...sessionCardStyle,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '1.5rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
                                 borderColor: session.isCompleted ? '#4ade80' : '#333',
-                                backgroundColor: session.isCompleted ? 'rgba(74, 222, 128, 0.05)' : '#0a0a0a',
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #222', paddingBottom: '0.75rem' }}>
-                                    <h3 style={{ ...sessionTitleStyle, borderBottom: 'none', margin: 0, paddingBottom: 0 }}>
+                                backgroundColor: session.isCompleted ? 'rgba(74, 222, 128, 0.05)' : '#161616',
+                            }} onClick={() => setSelectedSessionId(session.id)}>
+                                <div>
+                                    <h3 style={{ margin: '0 0 5px 0', fontSize: '1.2rem', color: session.isCompleted ? '#a7f3d0' : '#fff' }}>
                                         {session.name}
                                     </h3>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: session.isCompleted ? '#4ade80' : '#888' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={!!session.isCompleted}
-                                            onChange={() => handleToggleCompletion(session.id, !!session.isCompleted)}
-                                            style={{ cursor: 'pointer', accentColor: '#4ade80', width: '18px', height: '18px' }}
-                                        />
-                                    </label>
+                                    <span style={{ fontSize: '0.85rem', color: session.isCompleted ? '#4ade80' : '#888' }}>
+                                        {session.isCompleted ? '✅ Completada' : '⏳ Pendiente'}
+                                    </span>
                                 </div>
-
-                                <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
-                                    <button 
-                                        onClick={() => setExtraView('WARMUP')}
-                                        style={{ ...extraButtonStyle, backgroundColor: '#4a90e2' }}
-                                    >
-                                        🔥 Calentamiento
-                                    </button>
-                                    <button 
-                                        onClick={() => setExtraView('STRETCH')}
-                                        style={{ ...extraButtonStyle, backgroundColor: '#f5a623' }}
-                                    >
-                                        🧘 Estiramientos
-                                    </button>
+                                <div style={{ color: '#ff4d4d', fontWeight: 'bold' }}>
+                                    Ver ➔
                                 </div>
-
-                                <button
-                                    onClick={() => handleStartRoutine(session, 0)}
-                                    style={startSessionButtonStyle}
-                                >
-                                    {session.isCompleted ? 'Repetir Entrenamiento' : 'Comenzar Entrenamiento'}
-                                </button>
-
-                                {session.routines.map((routine: AnyType, rIdx: number) => (
-                                    <div key={routine.id} style={routineBoxStyle}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                            <h4 style={{ ...routineTitleStyle, margin: 0 }}>{routine.name}</h4>
-                                            <button
-                                                onClick={() => handleStartRoutine(session, rIdx)}
-                                                style={startRoutineSmallButtonStyle}
-                                            >
-                                                Ir a rutina
-                                            </button>
-                                        </div>
-                                        <div style={exerciseListStyle}>
-                                            {routine.exercises.map((item: AnyType) => {
-                                                return (
-                                                    <div key={item.id} style={exerciseItemStyle}>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                                            <div style={exerciseNameStyle}>{item.exercise?.name}</div>
-                                                            {(item.machine?.number || item.exercise?.machines?.[0]?.number) && (
-                                                                <div style={prominentMachineBadgeStyle}>
-                                                                    MÁQUINA {item.machine?.number || item.exercise.machines[0].number}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <div style={exerciseDetailsStyle}>
-                                                                <span>{item.series} series</span>
-                                                                <span>•</span>
-                                                                <span>{Array.isArray(item.reps) ? item.reps.join('-') : item.reps} reps</span>
-                                                                <span>•</span>
-                                                                <span>{item.restingTime}s desc.</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
                         ))}
                     </div>
@@ -335,21 +381,39 @@ const descStyle: React.CSSProperties = {
 
 const weekSelectorStyle: React.CSSProperties = {
     display: 'flex',
+    flexWrap: 'wrap',
     gap: '0.5rem',
-    overflowX: 'auto',
     paddingBottom: '1rem',
     marginBottom: '2rem',
     justifyContent: 'center',
 };
 
 const weekButtonStyle: React.CSSProperties = {
-    padding: '0.75rem 1.5rem',
+    flex: '1 1 calc(50% - 0.5rem)',
+    minWidth: '120px',
+    maxWidth: '200px',
+    padding: '0.75rem 1rem',
     borderRadius: '8px',
     border: 'none',
     cursor: 'pointer',
     fontWeight: 'bold',
     whiteSpace: 'nowrap',
     transition: 'all 0.2s',
+    textAlign: 'center',
+};
+
+const backButtonStyle: React.CSSProperties = {
+    backgroundColor: 'transparent',
+    color: '#ff4d4d',
+    border: '1px solid #ff4d4d',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    marginBottom: '1.5rem',
+    fontWeight: 'bold',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
 };
 
 const weekBodyStyle: React.CSSProperties = {
