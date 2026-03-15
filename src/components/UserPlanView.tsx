@@ -197,15 +197,15 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                     <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
                                         <button 
                                             onClick={() => setExtraView('WARMUP')}
-                                            style={{ ...extraButtonStyle, backgroundColor: '#4a90e2' }}
+                                            style={warmupStretchButtonStyle}
                                         >
-                                            🔥 Calentamiento
+                                            CALENTAMIENTO
                                         </button>
                                         <button 
                                             onClick={() => setExtraView('STRETCH')}
-                                            style={{ ...extraButtonStyle, backgroundColor: '#f5a623' }}
+                                            style={warmupStretchButtonStyle}
                                         >
-                                            🧘 Estiramientos
+                                            ESTIRAMIENTO
                                         </button>
                                     </div>
 
@@ -593,16 +593,17 @@ const videoPlayerStyle: React.CSSProperties = {
     backgroundColor: '#000',
     maxHeight: '70vh',
 };
-const extraButtonStyle: React.CSSProperties = {
+const warmupStretchButtonStyle: React.CSSProperties = {
     flex: 1,
     padding: '10px',
     borderRadius: '10px',
-    border: 'none',
-    color: '#fff',
+    border: '1px solid #ff4d4d',
+    backgroundColor: '#111',
+    color: '#ff4d4d',
     fontWeight: 'bold',
     fontSize: '0.9rem',
     cursor: 'pointer',
-    transition: 'transform 0.2s',
+    transition: 'all 0.2s',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
