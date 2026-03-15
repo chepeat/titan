@@ -175,11 +175,16 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                     borderColor: session.isCompleted ? '#4ade80' : '#333',
                                     backgroundColor: session.isCompleted ? 'rgba(74, 222, 128, 0.05)' : '#0a0a0a',
                                 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #222', paddingBottom: '0.75rem' }}>
-                                        <h3 style={{ ...sessionTitleStyle, borderBottom: 'none', margin: 0, paddingBottom: 0 }}>
-                                            {session.name}
-                                        </h3>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: session.isCompleted ? '#4ade80' : '#888' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', borderBottom: '1px solid #222', paddingBottom: '0.75rem' }}>
+                                        <div>
+                                            <span style={{ fontSize: '0.9rem', color: '#ff8a8a', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                                                Sesión {plan.weeks[activeWeekIdx].sessions.findIndex((s: AnyType) => s.id === session.id) + 1}
+                                            </span>
+                                            <h3 style={{ ...sessionTitleStyle, borderBottom: 'none', margin: 0, paddingBottom: 0 }}>
+                                                {session.name}
+                                            </h3>
+                                        </div>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: session.isCompleted ? '#4ade80' : '#888', marginTop: '4px' }}>
                                             <input
                                                 type="checkbox"
                                                 checked={!!session.isCompleted}
@@ -256,7 +261,7 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                 ) : (
                     // LIST VIEW
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {plan.weeks[activeWeekIdx].sessions.map((session: AnyType) => (
+                        {plan.weeks[activeWeekIdx].sessions.map((session: AnyType, sIdx: number) => (
                             <div key={session.id} style={{
                                 ...sessionCardStyle,
                                 display: 'flex',
@@ -269,6 +274,9 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                 backgroundColor: session.isCompleted ? 'rgba(74, 222, 128, 0.05)' : '#161616',
                             }} onClick={() => setSelectedSessionId(session.id)}>
                                 <div>
+                                    <span style={{ fontSize: '0.85rem', color: '#ff8a8a', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>
+                                        Sesión {sIdx + 1}
+                                    </span>
                                     <h3 style={{ margin: '0 0 5px 0', fontSize: '1.2rem', color: session.isCompleted ? '#a7f3d0' : '#fff' }}>
                                         {session.name}
                                     </h3>
