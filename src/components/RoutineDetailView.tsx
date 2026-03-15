@@ -25,8 +25,8 @@ export default function RoutineDetailView({
     isLastRoutine,
     initialLogs
 }: RoutineDetailViewProps) {
-    const [logs, setLogs] = useState<Record<string, number>>(() => {
-        const initialMap: Record<string, number> = {};
+    const [logs, setLogs] = useState<Record<string, number | string>>(() => {
+        const initialMap: Record<string, number | string> = {};
         initialLogs.forEach(log => {
             // Keep the last weight logged for the exercise as the routine's weight
             initialMap[log.exerciseId] = log.weight;
@@ -54,7 +54,7 @@ export default function RoutineDetailView({
 
         // Reset logs when routine changes to avoid carrying over weights from previous routine
         // We re-initialize from initialLogs if available for the new routine
-        const initialMap: Record<string, number> = {};
+        const initialMap: Record<string, number | string> = {};
         initialLogs.forEach(log => {
             initialMap[log.exerciseId] = log.weight;
         });
@@ -78,6 +78,11 @@ export default function RoutineDetailView({
     }, [timerActive, timerSeconds]);
 
     const handleWeightChange = async (exerciseId: string, weight: string) => {
+        if (weight === '') {
+            setLogs(prev => ({ ...prev, [exerciseId]: '' }));
+            return;
+        }
+
         const weightNum = parseFloat(weight);
         if (isNaN(weightNum)) return;
 
