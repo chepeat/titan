@@ -1,36 +1,30 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { login } from '@/services/authActions';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const supabase = createClient();
-    const router = useRouter();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
 
-        console.log('Intentando login para:', email);
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        const formData = new FormData();
+        formData.append('email', email);
+        formData.append('password', password);
 
-        if (error) {
-            console.error('Error de login Supabase:', error.message);
-            setError(error.message);
+        const result = await login(formData);
+        
+        // El server action internamente redirige ('redirect('/')') si tiene éxito, 
+        // y esta ejecución no continuará. Si llega aquí y hay error:
+        if (result?.error) {
+            setError(result.error);
             setLoading(false);
-        } else {
-            console.log('Login exitoso:', data.user?.email);
-            router.push('/');
-            router.refresh();
         }
     };
 
@@ -45,6 +39,7 @@ export default function LoginPage() {
                         <label style={labelStyle}>Email</label>
                         <input
                             type="email"
+                            name="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
@@ -56,6 +51,7 @@ export default function LoginPage() {
                         <label style={labelStyle}>Contraseña</label>
                         <input
                             type="password"
+                            name="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
