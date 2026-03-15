@@ -132,7 +132,7 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
             </div>
 
             {/* Week Selector */}
-            {!selectedSessionId && (
+            {!selectedSessionId && plan.weeks && (
                 <div style={weekSelectorStyle}>
                     {plan.weeks.map((week: AnyType, idx: number) => (
                         <button
@@ -155,7 +155,7 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
 
             {/* Active Week Content */}
             <div style={weekBodyStyle}>
-                {plan.weeks[activeWeekIdx]?.sessions.length === 0 ? (
+                {(!plan.weeks || plan.weeks.length === 0 || !plan.weeks[activeWeekIdx] || !plan.weeks[activeWeekIdx].sessions || plan.weeks[activeWeekIdx].sessions.length === 0) ? (
                     <p style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>No hay sesiones configuradas para esta semana.</p>
                 ) : selectedSessionId ? (
                     // DETAIL VIEW
@@ -216,7 +216,7 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                         {session.isCompleted ? 'Repetir Entrenamiento' : 'Comenzar Entrenamiento'}
                                     </button>
 
-                                    {session.routines.map((routine: AnyType, rIdx: number) => (
+                                    {(session.routines || []).map((routine: AnyType, rIdx: number) => (
                                         <div key={routine.id} style={routineBoxStyle}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                                 <h4 style={{ ...routineTitleStyle, margin: 0 }}>{routine.name}</h4>
