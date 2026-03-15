@@ -256,7 +256,7 @@ export default function RoutineDetailView({
                                         onClick={() => startTimer(parseInt(item.restingTime) || 60)}
                                         style={{ ...bigRestButtonStyle, fontSize: isMobile ? '1.2rem' : '1.5rem', padding: isMobile ? '15px' : '20px' }}
                                     >
-                                        Iniciar Descanso ({item.restingTime}s)
+                                        Iniciar descanso ({item.restingTime}s)
                                     </button>
                                 </div>
                             </div>
