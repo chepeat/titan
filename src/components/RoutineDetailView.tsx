@@ -103,18 +103,22 @@ export default function RoutineDetailView({
 
     const getYouTubeId = (url: string) => {
         if (!url) return null;
-        if (url.includes('youtube.com/embed/')) return url.split('embed/')[1]?.split('?')[0];
-        if (url.includes('youtube.com/watch?v=')) return url.split('v=')[1]?.split('&')[0];
-        if (url.includes('youtu.be/')) return url.split('youtu.be/')[1]?.split('?')[0];
+        const clean = url.trim();
+        if (clean.includes('youtube.com/embed/')) return clean.split('embed/')[1]?.split('?')[0]?.split('&')[0]?.split('#')[0];
+        if (clean.includes('youtube.com/watch?v=')) return clean.split('v=')[1]?.split('&')[0]?.split('?')[0]?.split('#')[0];
+        if (clean.includes('youtu.be/')) return clean.split('youtu.be/')[1]?.split('?')[0]?.split('&')[0]?.split('#')[0];
+        if (clean.includes('youtube.com/shorts/')) return clean.split('shorts/')[1]?.split('?')[0]?.split('&')[0]?.split('#')[0];
+        if (clean.includes('youtube.com/v/')) return clean.split('v/')[1]?.split('?')[0]?.split('&')[0]?.split('#')[0];
         return null;
     };
 
     const getEmbedUrl = (url: string) => {
         if (!url) return null;
-        if (url.includes('youtube.com/embed/')) return url;
-        const videoId = getYouTubeId(url);
+        const clean = url.trim();
+        const videoId = getYouTubeId(clean);
         if (videoId) return `https://www.youtube.com/embed/${videoId}`;
-        return url; // Return as is if not recognized as YouTube
+        if (clean.includes('youtube.com/embed/')) return clean.startsWith('http') ? clean : `https://${clean}`;
+        return clean.startsWith('http') ? clean : `https://${clean}`;
     };
 
     const getThumbnailUrl = (url: string) => {
@@ -127,7 +131,8 @@ export default function RoutineDetailView({
 
     const isExternalUrl = (url: string | null) => {
         if (!url) return false;
-        return url.startsWith('http') && (url.includes('youtube.com') || url.includes('youtu.be'));
+        const clean = url.trim().toLowerCase();
+        return clean.includes('youtube.com') || clean.includes('youtu.be');
     };
 
     return (
@@ -145,7 +150,7 @@ export default function RoutineDetailView({
 
             <div style={exerciseListStyle}>
                 {routine.exercises.map((item: AnyType) => {
-                    const videoUrl = item.exercise?.videoFile || item.exercise?.videoUrl;
+                    const videoUrl = item.exercise?.videoUrl || item.exercise?.videoFile;
                     const isExternal = isExternalUrl(videoUrl);
 
                     return (
@@ -281,7 +286,8 @@ export default function RoutineDetailView({
                                 <iframe
                                     src={getEmbedUrl(activeVideoUrl) || ''}
                                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    referrerPolicy="strict-origin-when-cross-origin"
                                     allowFullScreen
                                 />
                             </div>

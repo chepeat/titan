@@ -66,7 +66,7 @@ export async function createExercise(formData: FormData) {
                 observations,
                 type: type as ExerciseType,
                 videoFile: videoUrl || null,
-                videoUrl: videoUrlInput || null,
+                videoUrl: videoUrlInput ? videoUrlInput.trim() : null,
                 machines: {
                     connect: machineIds.map(id => ({ id }))
                 }
@@ -97,7 +97,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
             name,
             description,
             observations,
-            videoUrl: videoUrlInput || null,
+            videoUrl: videoUrlInput ? videoUrlInput.trim() : null,
             type: type ? (type as ExerciseType) : undefined,
             machines: {
                 set: machineIds.map(id => ({ id }))

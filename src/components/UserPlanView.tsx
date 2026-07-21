@@ -89,22 +89,30 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
         }
     };
 
+    const getYouTubeId = (url: string) => {
+        if (!url) return null;
+        const clean = url.trim();
+        if (clean.includes('youtube.com/embed/')) return clean.split('embed/')[1]?.split('?')[0]?.split('&')[0]?.split('#')[0];
+        if (clean.includes('youtube.com/watch?v=')) return clean.split('v=')[1]?.split('&')[0]?.split('?')[0]?.split('#')[0];
+        if (clean.includes('youtu.be/')) return clean.split('youtu.be/')[1]?.split('?')[0]?.split('&')[0]?.split('#')[0];
+        if (clean.includes('youtube.com/shorts/')) return clean.split('shorts/')[1]?.split('?')[0]?.split('&')[0]?.split('#')[0];
+        if (clean.includes('youtube.com/v/')) return clean.split('v/')[1]?.split('?')[0]?.split('&')[0]?.split('#')[0];
+        return null;
+    };
+
     const getEmbedUrl = (url: string) => {
         if (!url) return null;
-        if (url.includes('youtube.com/embed/')) return url;
-        let videoId = '';
-        if (url.includes('youtube.com/watch?v=')) {
-            videoId = url.split('v=')[1]?.split('&')[0];
-        } else if (url.includes('youtu.be/')) {
-            videoId = url.split('youtu.be/')[1]?.split('?')[0];
-        }
+        const clean = url.trim();
+        const videoId = getYouTubeId(clean);
         if (videoId) return `https://www.youtube.com/embed/${videoId}`;
-        return url;
+        if (clean.includes('youtube.com/embed/')) return clean.startsWith('http') ? clean : `https://${clean}`;
+        return clean.startsWith('http') ? clean : `https://${clean}`;
     };
 
     const isExternalUrl = (url: string | null) => {
         if (!url) return false;
-        return url.startsWith('http') && (url.includes('youtube.com') || url.includes('youtu.be'));
+        const clean = url.trim().toLowerCase();
+        return clean.includes('youtube.com') || clean.includes('youtu.be');
     };
 
     if (activeSession && activeRoutineIdx !== null) {
@@ -306,9 +314,9 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                 <div key={ex.id} style={{ ...exerciseItemStyle, cursor: 'default' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div style={exerciseNameStyle}>{ex.name}</div>
-                                        {(ex.videoFile || ex.videoUrl) && (
+                                        {(ex.videoUrl || ex.videoFile) && (
                                             <button 
-                                                onClick={() => setActiveVideoUrl(ex.videoFile || ex.videoUrl)}
+                                                onClick={() => setActiveVideoUrl(ex.videoUrl || ex.videoFile)}
                                                 style={videoIconButtonStyle}
                                             >
                                                 📹 Ver vídeo
@@ -344,7 +352,8 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                 <iframe
                                     src={getEmbedUrl(activeVideoUrl) || ''}
                                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    referrerPolicy="strict-origin-when-cross-origin"
                                     allowFullScreen
                                 />
                             </div>
