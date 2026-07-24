@@ -185,14 +185,8 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
             e.currentTarget.reset();
             setEditingMachine(null);
             setMachineImageFileName(''); // Reset file name
-            // Update machines state directly using returned machine data
-            const returnedMachine = (res as AnyType).machine;
-            if (returnedMachine) {
-                setMachines(prev => {
-                    const filtered = prev.filter((m: AnyType) => m.id !== returnedMachine.id);
-                    return [...filtered, returnedMachine].sort((a: AnyType, b: AnyType) => a.number - b.number);
-                });
-            }
+            // Refrescar la lista de máquinas inmediatamente para reflejar los cambios en la interfaz
+            await fetchData();
         } else {
             setMessage('Error: ' + (res as AnyType).error);
         }
