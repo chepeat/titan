@@ -192,9 +192,10 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                     const filtered = prev.filter((m: AnyType) => m.id !== returnedMachine.id);
                     return [...filtered, returnedMachine].sort((a: AnyType, b: AnyType) => a.number - b.number);
                 });
+            } else {
+                // Fallback: refrescar de base de datos si no viene el objeto
+                fetchData();
             }
-            // Refrescar la lista de máquinas en segundo plano para asegurar consistencia
-            fetchData();
         } else {
             setMessage('Error: ' + (res as AnyType).error);
         }
@@ -941,7 +942,6 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                                                             if (res.success) {
                                                                                 // Eliminar de inmediato del estado local para respuesta instantánea en la interfaz
                                                                                 setMachines(prev => prev.filter((mac: AnyType) => mac.id !== m.id));
-                                                                                fetchData();
                                                                             } else {
                                                                                 alert('Error al eliminar la máquina: ' + res.error);
                                                                             }
