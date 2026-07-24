@@ -205,7 +205,16 @@ export async function createMachine(formData: FormData) {
             }
         });
         revalidatePath('/');
-        return { success: true, machine };
+        return {
+            success: true,
+            machine: {
+                id: machine.id,
+                number: machine.number,
+                description: machine.description,
+                imageFile: machine.imageFile,
+                observations: machine.observations
+            }
+        };
     } catch (error: unknown) {
         console.error('Error creating machine:', error);
         return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
@@ -254,7 +263,16 @@ export async function updateMachine(machineId: string, formData: FormData) {
             data: updateData
         });
         revalidatePath('/');
-        return { success: true, machine };
+        return {
+            success: true,
+            machine: {
+                id: machine.id,
+                number: machine.number,
+                description: machine.description,
+                imageFile: machine.imageFile,
+                observations: machine.observations
+            }
+        };
     } catch (error: unknown) {
         console.error('Error updating machine:', error);
         return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };

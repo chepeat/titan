@@ -185,8 +185,16 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
             e.currentTarget.reset();
             setEditingMachine(null);
             setMachineImageFileName(''); // Reset file name
-            // Refrescar la lista de máquinas inmediatamente para reflejar los cambios en la interfaz
-            await fetchData();
+            // Actualizar el estado de máquinas localmente de inmediato con los datos limpios retornados del servidor
+            const returnedMachine = (res as AnyType).machine;
+            if (returnedMachine) {
+                setMachines(prev => {
+                    const filtered = prev.filter((m: AnyType) => m.id !== returnedMachine.id);
+                    return [...filtered, returnedMachine].sort((a: AnyType, b: AnyType) => a.number - b.number);
+                });
+            }
+            // Refrescar la lista de máquinas en segundo plano para asegurar consistencia
+            fetchData();
         } else {
             setMessage('Error: ' + (res as AnyType).error);
         }
@@ -931,6 +939,8 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                                                         if (confirm(`¿Estás seguro de que quieres eliminar la máquina "${m.description}"?`)) {
                                                                             const res = await deleteMachine(m.id);
                                                                             if (res.success) {
+                                                                                // Eliminar de inmediato del estado local para respuesta instantánea en la interfaz
+                                                                                setMachines(prev => prev.filter((mac: AnyType) => mac.id !== m.id));
                                                                                 fetchData();
                                                                             } else {
                                                                                 alert('Error al eliminar la máquina: ' + res.error);
