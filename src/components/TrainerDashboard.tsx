@@ -173,31 +173,43 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
         }
 
         let res;
-        if (editingMachine) {
-            res = await updateMachine(editingMachine.id, formData);
-        } else {
-            res = await createMachine(formData);
-        }
-
-        setUploading(false);
-        if (res.success) {
-            setMessage(editingMachine ? 'Máquina actualizada' : 'Máquina registrada');
-            e.currentTarget.reset();
-            setEditingMachine(null);
-            setMachineImageFileName(''); // Reset file name
-            // Actualizar el estado de máquinas localmente de inmediato con los datos limpios retornados del servidor
-            const returnedMachine = (res as AnyType).machine;
-            if (returnedMachine) {
-                setMachines(prev => {
-                    const filtered = prev.filter((m: AnyType) => m.id !== returnedMachine.id);
-                    return [...filtered, returnedMachine].sort((a: AnyType, b: AnyType) => a.number - b.number);
-                });
+        try {
+            if (editingMachine) {
+                res = await updateMachine(editingMachine.id, formData);
             } else {
-                // Fallback: refrescar de base de datos si no viene el objeto
-                fetchData();
+                res = await createMachine(formData);
             }
-        } else {
-            setMessage('Error: ' + (res as AnyType).error);
+
+            setUploading(false);
+            if (res.success) {
+                setMessage(editingMachine ? 'Máquina actualizada' : 'Máquina registrada');
+                e.currentTarget.reset();
+                setEditingMachine(null);
+                setMachineImageFileName(''); // Reset file name
+                // Actualizar el estado de máquinas localmente de inmediato con los datos limpios retornados del servidor
+                const returnedMachine = (res as AnyType).machine;
+                if (returnedMachine) {
+                    setMachines(prev => {
+                        const filtered = prev.filter((m: AnyType) => m.id !== returnedMachine.id);
+                        return [...filtered, returnedMachine].sort((a: AnyType, b: AnyType) => a.number - b.number);
+                    });
+                }
+                
+                // Forzar la invalidación del caché de Next.js
+                router.refresh();
+                
+                // Recargar de base de datos tras un breve delay para permitir el asentamiento de datos
+                setTimeout(() => {
+                    fetchData();
+                }, 200);
+            } else {
+                setMessage('Error: ' + (res as AnyType).error);
+            }
+        } catch (error: unknown) {
+            console.error('Error en handleMachineSubmit:', error);
+            setUploading(false);
+            setMessage('Error al procesar la máquina: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+            fetchData();
         }
     };
 
