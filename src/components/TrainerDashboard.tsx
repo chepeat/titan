@@ -260,21 +260,13 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
         setUploading(false);
         if (res.success) {
             setMessage(editingExercise ? 'Ejercicio actualizado' : 'Ejercicio guardado');
-            e.currentTarget.reset();
+            if (exerciseFormRef.current) exerciseFormRef.current.reset();
             setEditingExercise(null);
-            setExerciseVideoFileName(''); // Reset file name
+            setExerciseVideoFileName('');
             setSelectedMachineIds([]);
-            // Update exercise list directly using returned exercise data (if available)
-            const returnedExercise = (res as AnyType).exercise;
-            if (returnedExercise) {
-                setExercises(prev => {
-                    const filtered = prev.filter((ex: AnyType) => ex.id !== returnedExercise.id);
-                    return [...filtered, returnedExercise].sort((a: AnyType, b: AnyType) => a.name.localeCompare(b.name));
-                });
-            } else {
-                // fallback: re-fetch all exercises
-                fetchData();
-            }
+            // Re-fetch exercises to ensure catalog is up to date
+            const freshExercises = await getExercises();
+            setExercises(freshExercises);
         } else {
             setMessage('Error: ' + (res as AnyType).error);
         }
