@@ -237,16 +237,24 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                             </div>
                                             <div style={exerciseListStyle}>
                                                 {routine.exercises.map((item: AnyType) => {
+                                                    const mainMachineId = item.machine?.id || item.exercise?.machines?.[0]?.id;
+                                                    const altMachines = (item.exercise?.machines || []).filter((m: AnyType) => m.id !== mainMachineId);
+
                                                     return (
                                                         <div key={item.id} style={exerciseItemStyle}>
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                                                <div style={exerciseNameStyle}>{item.exercise?.name}</div>
+                                                                <div style={exerciseNameStyle}>Nº {item.exercise?.number} — {item.exercise?.name}</div>
                                                                 {(item.machine?.number || item.exercise?.machines?.[0]?.number) && (
                                                                     <div style={prominentMachineBadgeStyle}>
-                                                                        MÁQUINA {item.machine?.number || item.exercise.machines[0].number}
+                                                                        MÁQUINA {item.machine?.number || item.exercise?.machines?.[0]?.number}
                                                                     </div>
                                                                 )}
                                                             </div>
+                                                            {altMachines.length > 0 && (
+                                                                <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '8px', textAlign: 'right' }}>
+                                                                    🔄 También en: {altMachines.map((m: AnyType) => `Máq. ${m.number}${m.description ? ` (${m.description})` : ''}`).join(' · ')}
+                                                                </div>
+                                                            )}
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                                 <div style={exerciseDetailsStyle}>
                                                                     <span>{item.series} series</span>
@@ -313,7 +321,7 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                             {(extraView === 'WARMUP' ? warmupExercises : stretchExercises).map((ex: AnyType) => (
                                 <div key={ex.id} style={{ ...exerciseItemStyle, cursor: 'default' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={exerciseNameStyle}>{ex.name}</div>
+                                        <div style={exerciseNameStyle}>Nº {ex.number} — {ex.name}</div>
                                         {(ex.videoUrl || ex.videoFile) && (
                                             <button 
                                                 onClick={() => setActiveVideoUrl(ex.videoUrl || ex.videoFile)}

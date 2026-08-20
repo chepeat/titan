@@ -22,6 +22,7 @@ export async function getExercises() {
 }
 
 export async function createExercise(formData: FormData) {
+    const number = parseInt(formData.get('number') as string);
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
     const observations = formData.get('observations') as string;
@@ -61,6 +62,7 @@ export async function createExercise(formData: FormData) {
 
         const exercise = await prisma.exercise.create({
             data: {
+                number,
                 name,
                 description,
                 observations,
@@ -82,6 +84,7 @@ export async function createExercise(formData: FormData) {
 }
 
 export async function updateExercise(exerciseId: string, formData: FormData) {
+    const number = parseInt(formData.get('number') as string);
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
     const observations = formData.get('observations') as string;
@@ -94,6 +97,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
     try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updateData: Record<string, any> = {
+            number,
             name,
             description,
             observations,

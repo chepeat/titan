@@ -94,6 +94,7 @@ model RoutineItem {
 
 model Exercise {
   id           String        @id @default(cuid())
+  number       Int
   name         String
   description  String?
   videoFile    String?

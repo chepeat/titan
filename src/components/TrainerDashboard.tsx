@@ -444,7 +444,9 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                 exercise: exercise, // Store for local display
                 series: 3,
                 reps: ["10", "10", "10"],
-                restingTime: 60
+                restingTime: 60,
+                machineId: exercise.machines?.[0]?.id || null,
+                machine: exercise.machines?.[0] || null
             }
         ]);
     };
@@ -505,6 +507,7 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
         setTimeout(() => {
             if (exerciseFormRef.current) {
                 const form = exerciseFormRef.current;
+                (form.elements.namedItem('number') as HTMLInputElement).value = ex.number || '';
                 (form.elements.namedItem('name') as HTMLInputElement).value = ex.name || '';
                 (form.elements.namedItem('type') as HTMLSelectElement).value = ex.type || 'TRAINING';
                 (form.elements.namedItem('description') as HTMLTextAreaElement).value = ex.description || '';
@@ -811,6 +814,29 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                                                     style={smallInputStyle}
                                                                 />
                                                             </div>
+                                                            <div style={{ width: '120px' }}>
+                                                                <label style={microLabelStyle}>Máquina por defecto</label>
+                                                                <select
+                                                                    value={item.machineId || ''}
+                                                                    onChange={(e) => {
+                                                                        const mId = e.target.value;
+                                                                        const m = item.exercise.machines?.find((mac: AnyType) => mac.id === mId) || null;
+                                                                        const newItems = [...routineItems];
+                                                                        newItems[idx] = { ...newItems[idx], machineId: mId || null, machine: m };
+                                                                        setRoutineItems(newItems);
+                                                                    }}
+                                                                    style={smallInputStyle}
+                                                                    disabled={!item.exercise.machines || item.exercise.machines.length <= 1}
+                                                                >
+                                                                    {(!item.exercise.machines || item.exercise.machines.length === 0) ? (
+                                                                        <option value="">Sin máquina</option>
+                                                                    ) : (
+                                                                        item.exercise.machines.map((m: AnyType) => (
+                                                                            <option key={m.id} value={m.id}>Máquina {m.number}</option>
+                                                                        ))
+                                                                    )}
+                                                                </select>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -980,6 +1006,10 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                             <h3 style={sectionTitleStyle}>{editingExercise ? 'Editando Ejercicio' : 'Administración de Ejercicios'}</h3>
                             <form ref={exerciseFormRef} onSubmit={handleExerciseSubmit} style={formStyle}>
                                 <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                                    <div style={{ flex: 0.5 }}>
+                                        <label style={labelStyle}>Número del ejercicio</label>
+                                        <input type="number" name="number" required style={inputStyle} />
+                                    </div>
                                     <div style={{ flex: 1.5 }}>
                                         <label style={labelStyle}>Nombre del Ejercicio *</label>
                                         <input type="text" name="name" placeholder="Ej: Press de Banca" required style={inputStyle} />
@@ -1082,7 +1112,7 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '100%', overflow: 'hidden' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                            <strong>{ex.name}</strong>
+                                                            <strong>{ex.number != null ? `Nº ${ex.number} — ` : ''}{ex.name}</strong>
                                                             <span style={{ 
                                                                 fontSize: '0.7rem', 
                                                                 padding: '2px 8px', 

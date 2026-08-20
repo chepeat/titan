@@ -153,6 +153,9 @@ export default function RoutineDetailView({
                     const videoUrl = item.exercise?.videoUrl || item.exercise?.videoFile;
                     const isExternal = isExternalUrl(videoUrl);
 
+                    const mainMachineId = item.machine?.id || item.exercise?.machines?.[0]?.id;
+                    const alternativeMachines = item.exercise?.machines?.filter((m: AnyType) => m.id !== mainMachineId) || [];
+
                     return (
                         <div key={item.id} style={exerciseCardStyle}>
                             <div style={exerciseHeaderStyle}>
@@ -166,6 +169,11 @@ export default function RoutineDetailView({
                                                     : 'MÁQUINA GENERICA')}
                                         </div>
                                     </div>
+                                    {alternativeMachines.length > 0 && (
+                                        <div style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: '#999', marginTop: '4px' }}>
+                                            🔄 Alternativas: {alternativeMachines.map((m: AnyType) => `Máq. ${m.number} (${m.description})`).join(' · ')}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div style={horizontalSeriesContainerStyle}>
@@ -183,7 +191,9 @@ export default function RoutineDetailView({
                             <div style={exerciseContentContainerStyle}>
                                 {/* Information and Video Column */}
                                 <div style={infoColStyle}>
-                                    <h3 style={{ ...exerciseNameStyle, fontSize: isMobile ? '1.3rem' : '1.8rem' }}>{item.exercise?.name}</h3>
+                                    <h3 style={{ ...exerciseNameStyle, fontSize: isMobile ? '1.3rem' : '1.8rem' }}>
+                                        Nº {item.exercise?.number} — {item.exercise?.name}
+                                    </h3>
                                     {videoUrl ? (
                                         <div
                                             onClick={() => setActiveVideoUrl(videoUrl)}
