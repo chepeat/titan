@@ -131,12 +131,13 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
             }
         }
 
-        await prisma.exercise.update({
+        const exercise = await prisma.exercise.update({
             where: { id: exerciseId },
-            data: updateData
+            data: updateData,
+            include: { machines: true }
         });
         revalidatePath('/');
-        return { success: true };
+        return { success: true, exercise };
     } catch (error: unknown) {
         console.error('Error updating exercise:', error);
         return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
