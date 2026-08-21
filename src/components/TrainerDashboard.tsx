@@ -1045,30 +1045,90 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                 </div>
                                 <div style={{ marginBottom: '20px' }}>
                                     <label style={labelStyle}>Máquinas Asociadas (Selecciona para asignar)</label>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '8px' }}>
-                                        {machines.map(m => {
-                                            const isSelected = selectedMachineIds.includes(m.id);
-                                            return (
-                                                <label key={m.id} style={{
-                                                    ...checkboxLabelStyle,
-                                                    backgroundColor: isSelected ? 'rgba(255, 77, 77, 0.15)' : '#000',
-                                                    borderColor: isSelected ? '#ff4d4d' : '#222',
-                                                    color: isSelected ? '#fff' : '#888'
-                                                }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        name="machineIds"
-                                                        value={m.id}
-                                                        checked={isSelected}
-                                                        onChange={() => toggleMachineSelection(m.id)}
-                                                        style={{ cursor: 'pointer' }}
-                                                    />
-                                                    <span style={{ fontWeight: isSelected ? 'bold' : 'normal' }}>
-                                                        {isSelected ? '📍 ' : ''}Máquina {m.number}: {m.description}
-                                                    </span>
-                                                </label>
-                                            );
-                                        })}
+
+                                    {/* Campos ocultos para enviar con FormData */}
+                                    {selectedMachineIds.map(id => (
+                                        <input key={id} type="hidden" name="machineIds" value={id} />
+                                    ))}
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                                        <select
+                                            style={{
+                                                ...inputStyle,
+                                                cursor: 'pointer',
+                                                borderColor: '#333',
+                                                backgroundColor: '#111',
+                                                color: '#fff'
+                                            }}
+                                            value=""
+                                            onChange={(e) => {
+                                                const id = e.target.value;
+                                                if (id && !selectedMachineIds.includes(id)) {
+                                                    setSelectedMachineIds([...selectedMachineIds, id]);
+                                                }
+                                            }}
+                                        >
+                                            <option value="" disabled>-- Añadir máquina de la lista --</option>
+                                            {machines
+                                                .slice()
+                                                .sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity))
+                                                .map(m => {
+                                                    const isSelected = selectedMachineIds.includes(m.id);
+                                                    return (
+                                                        <option key={m.id} value={m.id} disabled={isSelected}>
+                                                            {isSelected ? '✓ ' : ''}Máquina {m.number}: {m.description}
+                                                        </option>
+                                                    );
+                                                })}
+                                        </select>
+
+                                        {selectedMachineIds.length > 0 ? (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+                                                {selectedMachineIds.map(id => {
+                                                    const m = machines.find(item => item.id === id);
+                                                    if (!m) return null;
+                                                    return (
+                                                        <div
+                                                            key={id}
+                                                            style={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '8px',
+                                                                padding: '6px 12px',
+                                                                borderRadius: '20px',
+                                                                backgroundColor: 'rgba(255, 77, 77, 0.15)',
+                                                                border: '1px solid #ff4d4d',
+                                                                color: '#fff',
+                                                                fontSize: '0.85rem'
+                                                            }}
+                                                        >
+                                                            <span>📍 Máquina {m.number}: {m.description}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedMachineIds(selectedMachineIds.filter(item => item !== id))}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    color: '#ff4d4d',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: 'bold',
+                                                                    fontSize: '1rem',
+                                                                    padding: '0 2px',
+                                                                    lineHeight: 1
+                                                                }}
+                                                                title="Quitar máquina"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <p style={{ fontSize: '0.8rem', color: '#666', margin: '4px 0 0 0' }}>
+                                                Ninguna máquina seleccionada. Elige una del desplegable superior.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '10px' }}>
