@@ -9,16 +9,91 @@ import { ExerciseType } from '@prisma/client';
 export async function getExercises() {
     noStore();
     try {
-        return await prisma.exercise.findMany({
+        const exercises = await prisma.exercise.findMany({
             include: {
-                machines: true
-            },
-            orderBy: { name: 'asc' }
+                machines: {
+                    orderBy: { number: 'asc' }
+                }
+            }
+        });
+
+        return exercises.sort((a, b) => {
+            const numA = (a.number !== null && a.number !== undefined) ? a.number : Infinity;
+            const numB = (b.number !== null && b.number !== undefined) ? b.number : Infinity;
+
+            if (numA !== numB) {
+                return numA - numB;
+            }
+
+            const getMinMachineNum = (ex: typeof a) => {
+                if (!ex.machines || ex.machines.length === 0) return Infinity;
+                const machNums = ex.machines
+                    .map(m => m.number)
+                    .filter((n): n is number => n !== null && n !== undefined);
+                if (machNums.length === 0) return Infinity;
+                return Math.min(...machNums);
+            };
+
+            const minMachA = getMinMachineNum(a);
+            const minMachB = getMinMachineNum(b);
+
+            if (minMachA !== minMachB) {
+                return minMachA - minMachB;
+            }
+
+            return (a.name || '').localeCompare(b.name || '');
         });
     } catch (error: unknown) {
         console.error('Error fetching exercises:', error);
         return [];
     }
+}
+
+async function checkDuplicateNumberAndMachine(number: number, machineIds: string[], excludeExerciseId?: string) {
+    if (isNaN(number)) return null;
+
+    if (machineIds.length > 0) {
+        const existing = await prisma.exercise.findMany({
+            where: {
+                number: number,
+                id: excludeExerciseId ? { not: excludeExerciseId } : undefined,
+                machines: {
+                    some: {
+                        id: { in: machineIds }
+                    }
+                }
+            },
+            include: {
+                machines: {
+                    where: {
+                        id: { in: machineIds }
+                    }
+                }
+            }
+        });
+
+        if (existing.length > 0) {
+            const conflictingEx = existing[0];
+            const conflictingMach = conflictingEx.machines[0];
+            const machLabel = conflictingMach ? `Máquina ${conflictingMach.number}` : 'la misma máquina';
+            return `Ya existe el ejercicio "${conflictingEx.name}" con el Nº ${number} asignado a ${machLabel}. Un ejercicio no puede tener el mismo número y la misma máquina.`;
+        }
+    } else {
+        const existing = await prisma.exercise.findMany({
+            where: {
+                number: number,
+                id: excludeExerciseId ? { not: excludeExerciseId } : undefined,
+                machines: { none: {} }
+            }
+        });
+
+        if (existing.length > 0) {
+            const conflictingEx = existing[0];
+            return `Ya existe el ejercicio "${conflictingEx.name}" con el Nº ${number} (sin máquina). Un ejercicio no puede tener el mismo número en la misma categoría.`;
+        }
+    }
+
+    return null;
 }
 
 export async function createExercise(formData: FormData) {
@@ -31,6 +106,11 @@ export async function createExercise(formData: FormData) {
     const videoFileUrl = formData.get('videoFileUrl') as string; // URL from client-side upload
     const type = (formData.get('type') as string) || 'TRAINING';
     const machineIds = formData.getAll('machineIds') as string[];
+
+    const duplicateError = await checkDuplicateNumberAndMachine(number, machineIds);
+    if (duplicateError) {
+        return { success: false, error: duplicateError };
+    }
 
     let videoUrl = videoFileUrl || '';
 
@@ -93,6 +173,11 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
     const videoFileUrl = formData.get('videoFileUrl') as string; // URL from client-side upload
     const type = formData.get('type') as string;
     const machineIds = formData.getAll('machineIds') as string[];
+
+    const duplicateError = await checkDuplicateNumberAndMachine(number, machineIds, exerciseId);
+    if (duplicateError) {
+        return { success: false, error: duplicateError };
+    }
 
     try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
