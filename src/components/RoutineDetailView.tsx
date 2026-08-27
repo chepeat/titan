@@ -37,6 +37,8 @@ export default function RoutineDetailView({
     const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
     const [timerActive, setTimerActive] = useState(false);
     const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+    const [selectedMachines, setSelectedMachines] = useState<Record<string, AnyType>>({});
+    const [switchingMachineItemId, setSwitchingMachineItemId] = useState<string | null>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const [isMobile, setIsMobile] = useState(false);
 
@@ -50,6 +52,8 @@ export default function RoutineDetailView({
     useEffect(() => {
         setTimerActive(false);
         setTimerSeconds(null);
+        setSelectedMachines({});
+        setSwitchingMachineItemId(null);
         if (timerRef.current) clearInterval(timerRef.current);
 
         // Reset logs when routine changes to avoid carrying over weights from previous routine
@@ -150,28 +154,106 @@ export default function RoutineDetailView({
 
             <div style={exerciseListStyle}>
                 {routine.exercises.map((item: AnyType) => {
-                    const videoUrl = item.exercise?.videoUrl || item.exercise?.videoFile;
-                    const isExternal = isExternalUrl(videoUrl);
+                    const currentMachine = selectedMachines[item.id] || item.machine || item.exercise?.machines?.[0];
+                    const allMachinesForItem = (item.exercise?.machines && item.exercise.machines.length > 0)
+                        ? item.exercise.machines
+                        : (item.machine ? [item.machine] : []);
+                    const hasAlternatives = allMachinesForItem.length > 1;
+                    const isSwitching = switchingMachineItemId === item.id;
 
-                    const mainMachineId = item.machine?.id || item.exercise?.machines?.[0]?.id;
-                    const alternativeMachines = item.exercise?.machines?.filter((m: AnyType) => m.id !== mainMachineId) || [];
+                    const videoUrl = currentMachine?.videoUrl || item.exercise?.videoUrl || item.exercise?.videoFile;
+                    const isExternal = isExternalUrl(videoUrl);
 
                     return (
                         <div key={item.id} style={exerciseCardStyle}>
                             <div style={exerciseHeaderStyle}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                                         <div style={{ ...prominentMachineHeaderStyle, fontSize: isMobile ? '1.1rem' : '1.5rem', padding: isMobile ? '8px 16px' : '12px 24px' }}>
-                                            {item.machine?.number
-                                                ? `MÁQUINA Nº ${item.machine.number}`
-                                                : (item.exercise?.machines?.[0]?.number
-                                                    ? `MÁQUINA Nº ${item.exercise.machines[0].number}`
-                                                    : 'MÁQUINA GENERICA')}
+                                            {currentMachine?.number
+                                                ? `MÁQUINA Nº ${currentMachine.number}`
+                                                : 'MÁQUINA GENÉRICA'}
                                         </div>
+
+                                        {hasAlternatives && (
+                                            <button
+                                                onClick={() => setSwitchingMachineItemId(isSwitching ? null : item.id)}
+                                                style={{
+                                                    backgroundColor: isSwitching ? '#ff4d4d' : 'rgba(255, 77, 77, 0.15)',
+                                                    color: isSwitching ? '#fff' : '#ff4d4d',
+                                                    border: '1px solid #ff4d4d',
+                                                    borderRadius: '20px',
+                                                    padding: isMobile ? '6px 12px' : '8px 16px',
+                                                    fontSize: isMobile ? '0.8rem' : '0.9rem',
+                                                    fontWeight: 'bold',
+                                                    cursor: 'pointer',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    transition: 'all 0.2s ease',
+                                                    boxShadow: '0 2px 8px rgba(255, 77, 77, 0.2)'
+                                                }}
+                                            >
+                                                <span>⚠️</span>
+                                                <span>{isSwitching ? 'Cerrar' : 'Ocupado'}</span>
+                                            </button>
+                                        )}
                                     </div>
-                                    {alternativeMachines.length > 0 && (
+
+                                    {/* Machine switcher panel */}
+                                    {isSwitching && hasAlternatives && (
+                                        <div style={{
+                                            marginTop: '10px',
+                                            padding: '12px 16px',
+                                            backgroundColor: '#161616',
+                                            borderRadius: '12px',
+                                            border: '1px solid #ff4d4d',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '10px'
+                                        }}>
+                                            <div style={{ fontSize: '0.85rem', color: '#ff8a8a', fontWeight: 'bold' }}>
+                                                ⚠️ Máquina {currentMachine?.number} ocupada. Elige una máquina alternativa disponible para este ejercicio:
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                {allMachinesForItem
+                                                    .sort((a: AnyType, b: AnyType) => a.number - b.number)
+                                                    .map((m: AnyType) => {
+                                                        const isSelected = m.id === currentMachine?.id;
+                                                        return (
+                                                            <button
+                                                                key={m.id}
+                                                                onClick={() => {
+                                                                    setSelectedMachines(prev => ({ ...prev, [item.id]: m }));
+                                                                    setSwitchingMachineItemId(null);
+                                                                }}
+                                                                style={{
+                                                                    padding: '8px 14px',
+                                                                    backgroundColor: isSelected ? '#ff4d4d' : '#222',
+                                                                    color: isSelected ? '#fff' : '#ccc',
+                                                                    border: isSelected ? '1px solid #ff4d4d' : '1px solid #444',
+                                                                    borderRadius: '8px',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.85rem',
+                                                                    fontWeight: isSelected ? 'bold' : 'normal',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    transition: 'all 0.15s ease'
+                                                                }}
+                                                            >
+                                                                <span>⚙️</span>
+                                                                <span>{isSelected ? '✓ ' : ''}Máquina {m.number} ({m.description || 'Sin desc.'})</span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!isSwitching && hasAlternatives && (
                                         <div style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: '#999', marginTop: '4px' }}>
-                                            🔄 Alternativas: {alternativeMachines.map((m: AnyType) => `Máq. ${m.number} (${m.description})`).join(' · ')}
+                                            🔄 Alternativas: {allMachinesForItem.filter((m: AnyType) => m.id !== currentMachine?.id).map((m: AnyType) => `Máq. ${m.number} (${m.description})`).join(' · ')}
                                         </div>
                                     )}
                                 </div>
