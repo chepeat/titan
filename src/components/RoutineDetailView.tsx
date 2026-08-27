@@ -172,10 +172,15 @@ export default function RoutineDetailView({
                     );
 
                     const currentMachine = selectedMachines[item.id] || item.machine || allMachinesForItem[0] || item.exercise?.machines?.[0];
+                    const matchingExerciseForCurrentMachine = matchingExercises.find((ex: AnyType) =>
+                        ex.machines?.some((m: AnyType) => m.id === currentMachine?.id)
+                    );
+                    const effectiveExercise = matchingExerciseForCurrentMachine || item.exercise;
+
                     const hasAlternatives = allMachinesForItem.length > 1;
                     const isSwitching = switchingMachineItemId === item.id;
 
-                    const videoUrl = currentMachine?.videoUrl || item.exercise?.videoUrl || item.exercise?.videoFile;
+                    const videoUrl = currentMachine?.videoUrl || effectiveExercise?.videoUrl || effectiveExercise?.videoFile;
                     const isExternal = isExternalUrl(videoUrl);
 
                     return (
@@ -288,7 +293,7 @@ export default function RoutineDetailView({
                                 {/* Information and Video Column */}
                                 <div style={infoColStyle}>
                                     <h3 style={{ ...exerciseNameStyle, fontSize: isMobile ? '1.3rem' : '1.8rem' }}>
-                                        Nº {item.exercise?.number} — {item.exercise?.name}
+                                        Nº {effectiveExercise?.number || item.exercise?.number} — {effectiveExercise?.name || item.exercise?.name}
                                     </h3>
                                     {videoUrl ? (
                                         <div
