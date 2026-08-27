@@ -387,21 +387,11 @@ export async function getTrainingPlans() {
             include: {
                 weeks: {
                     include: {
-                        sessions: {
-                            include: {
-                                routines: {
-                                    include: {
-                                        exercises: {
-                                            include: {
-                                                exercise: true,
-                                                machine: true
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        _count: {
+                            select: { sessions: true }
                         }
-                    }
+                    },
+                    orderBy: { number: 'asc' }
                 }
             },
             orderBy: { id: 'desc' }
@@ -565,6 +555,15 @@ export async function updateTrainingPlan(id: string, data: TrainingPlanData) {
             // 1. Delete all existing relations (cascading cleanup)
             // Note: In our schema, many relations don't have onDelete: Cascade explicitly set everywhere
             // so we manually clean up to be safe since we are recreating.
+            prisma.routineItem.deleteMany({
+                where: { routine: { session: { week: { trainingPlanId: id } } } }
+            }),
+            prisma.routine.deleteMany({
+                where: { session: { week: { trainingPlanId: id } } }
+            }),
+            prisma.session.deleteMany({
+                where: { week: { trainingPlanId: id } }
+            }),
             prisma.week.deleteMany({ where: { trainingPlanId: id } }),
 
             // 2. Update the main plan and recreate everything
@@ -981,8 +980,9 @@ export async function updateWeekTemplate(weekId: string, data: WeekUpdateData) {
         // In a real application, you might want a more sophisticated way to update nested relations,
         // but for a template editor, deleting and recreating is often simpler.
         await prisma.$transaction([
-            // Delete existing sessions (routines and items will be deleted or orphaned depending on schema)
-            // Note: Since RoutineItem has Cascade delete from Routine, we should delete Routines too.
+            prisma.routineItem.deleteMany({
+                where: { routine: { session: { weekId: weekId } } }
+            }),
             prisma.routine.deleteMany({
                 where: { session: { weekId: weekId } }
             }),

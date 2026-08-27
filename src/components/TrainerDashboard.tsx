@@ -646,7 +646,14 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                     {plans.length === 0 ? <p style={{ color: '#666' }}>No hay entrenamientos creados todavía.</p> : plans.map(p => (
                                         <div key={p.id} style={itemCardStyle}>
                                             <h4 style={{ margin: '0 0 10px 0', color: '#ff4d4d' }}>{p.name}</h4>
-                                            <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '15px' }}>{p.description || 'Sin descripción'}</p>
+                                            <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '10px' }}>{p.description || 'Sin descripción'}</p>
+                                            <div style={{ marginBottom: '15px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                                {p.weeks?.map((w: AnyType) => (
+                                                    <span key={w.id} style={{ fontSize: '0.8rem', backgroundColor: '#333', padding: '3px 8px', borderRadius: '4px', color: '#ccc' }}>
+                                                        Semana {w.number}: {w._count?.sessions || 0} sesiones
+                                                    </span>
+                                                ))}
+                                            </div>
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                                                 <Link href={`/coach/workouts/${p.id}`} style={smallButtonStyle}>Editar Plan</Link>
                                                 <button
