@@ -822,46 +822,44 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                                                 />
                                                             </div>
                                                             <div style={{ width: '140px' }}>
-                                                                <label style={microLabelStyle}>Máquina por defecto</label>
+                                                                <label style={microLabelStyle}>Máquina</label>
                                                                 <select
                                                                     value={item.machineId || ''}
                                                                     onChange={(e) => {
                                                                         const mId = e.target.value;
-                                                                        const m = item.exercise?.machines?.find((mac: AnyType) => mac.id === mId)
-                                                                               || machines.find((mac: AnyType) => mac.id === mId)
+                                                                        // Find machine from exercise's own machines or from grouped exercises with same number
+                                                                        const group = groupedExercises.find(g => g.number === item.exercise?.number);
+                                                                        const m = group?.allMachines.find((mac: AnyType) => mac.id === mId)
+                                                                               || item.exercise?.machines?.find((mac: AnyType) => mac.id === mId)
                                                                                || null;
                                                                         const newItems = [...routineItems];
                                                                         newItems[idx] = { ...newItems[idx], machineId: mId || null, machine: m };
                                                                         setRoutineItems(newItems);
                                                                     }}
                                                                     style={smallInputStyle}
+                                                                    disabled={(() => {
+                                                                        const group = groupedExercises.find(g => g.number === item.exercise?.number);
+                                                                        const totalMachines = group?.allMachines.length || item.exercise?.machines?.length || 0;
+                                                                        return totalMachines <= 1;
+                                                                    })()}
                                                                 >
                                                                     {(() => {
-                                                                        const exerciseMachines = item.exercise?.machines || [];
-                                                                        const exerciseMachineIds = new Set(exerciseMachines.map((m: AnyType) => m.id));
-                                                                        const otherMachines = machines.filter((m: AnyType) => !exerciseMachineIds.has(m.id));
+                                                                        // Get all machines for this exercise number (across all exercise records)
+                                                                        const group = groupedExercises.find(g => g.number === item.exercise?.number);
+                                                                        const availableMachines = group?.allMachines || item.exercise?.machines || [];
 
                                                                         return (
                                                                             <>
-                                                                                <option value="">Sin máquina</option>
-                                                                                {exerciseMachines.length > 0 && (
-                                                                                    <optgroup label="Máquinas del ejercicio">
-                                                                                        {exerciseMachines.map((m: AnyType) => (
-                                                                                            <option key={m.id} value={m.id}>
-                                                                                                Máquina {m.number} ({m.description})
-                                                                                            </option>
-                                                                                        ))}
-                                                                                    </optgroup>
+                                                                                {availableMachines.length === 0 && (
+                                                                                    <option value="">Sin máquina</option>
                                                                                 )}
-                                                                                {otherMachines.length > 0 && (
-                                                                                    <optgroup label={exerciseMachines.length > 0 ? "Otras máquinas" : "Todas las máquinas"}>
-                                                                                        {otherMachines.map((m: AnyType) => (
-                                                                                            <option key={m.id} value={m.id}>
-                                                                                                Máquina {m.number} ({m.description})
-                                                                                            </option>
-                                                                                        ))}
-                                                                                    </optgroup>
-                                                                                )}
+                                                                                {availableMachines
+                                                                                    .sort((a: AnyType, b: AnyType) => a.number - b.number)
+                                                                                    .map((m: AnyType) => (
+                                                                                        <option key={m.id} value={m.id}>
+                                                                                            Máquina {m.number}
+                                                                                        </option>
+                                                                                    ))}
                                                                             </>
                                                                         );
                                                                     })()}
