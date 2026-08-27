@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     getExercises,
@@ -61,6 +61,7 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
     const [routineItems, setRoutineItems] = useState<AnyType[]>([]);
     const [routineName, setRoutineName] = useState('');
     const [routineDesc, setRoutineDesc] = useState('');
+    const [expandedCatalogExercise, setExpandedCatalogExercise] = useState<number | null>(null);
 
     // Session construction state
     const [sessionRoutines, setSessionRoutines] = useState<AnyType[]>([]);
@@ -97,6 +98,8 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                 setRoutines(data);
                 const exData = await getExercises();
                 setExercises(exData);
+                const mData = await getMachines();
+                setMachines(mData);
             } else if (view === 'sessions') {
                 const data = await getSessionTemplates(coachId);
                 setSessions(data);
@@ -123,8 +126,11 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
         // Reset edit states when changing view
         setEditingExercise(null);
         setEditingMachine(null);
+        setEditingRoutine(null);
+        setRoutineItems([]);
         setRoutineName('');
         setRoutineDesc('');
+        setExpandedCatalogExercise(null);
         setEditingSession(null);
         setSessionRoutines([]);
         setSessionName('');
@@ -415,19 +421,39 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
     };
 
     // ROUTINE EDITOR HELPERS
-    const addExerciseToRoutine = (exercise: AnyType) => {
+    // Group exercises by number for the catalog display
+    const groupedExercises = useMemo(() => {
+        const groups: Record<number, { name: string; description: string | null; exercises: AnyType[]; allMachines: AnyType[] }> = {};
+        exercises.forEach((ex: AnyType) => {
+            if (!groups[ex.number]) {
+                groups[ex.number] = { name: ex.name, description: ex.description, exercises: [], allMachines: [] };
+            }
+            groups[ex.number].exercises.push(ex);
+            (ex.machines || []).forEach((m: AnyType) => {
+                if (!groups[ex.number].allMachines.find((existing: AnyType) => existing.id === m.id)) {
+                    groups[ex.number].allMachines.push(m);
+                }
+            });
+        });
+        return Object.entries(groups)
+            .sort(([a], [b]) => Number(a) - Number(b))
+            .map(([num, data]) => ({ number: Number(num), ...data }));
+    }, [exercises]);
+
+    const addExerciseToRoutine = (exercise: AnyType, machine?: AnyType) => {
         setRoutineItems(prev => [
             ...prev,
             {
                 exerciseId: exercise.id,
-                exercise: exercise, // Store for local display
+                exercise: exercise,
                 series: 3,
                 reps: ["10", "10", "10"],
                 restingTime: 60,
-                machineId: exercise.machines?.[0]?.id || null,
-                machine: exercise.machines?.[0] || null
+                machineId: machine?.id || null,
+                machine: machine || null
             }
         ]);
+        setExpandedCatalogExercise(null);
     };
 
     const removeRoutineItem = (index: number) => {
@@ -884,27 +910,88 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                     </div>
                                 </div>
 
-                                {/* LADO DERECHO: CATÁLOGO DE EJERCICIOS (PARA "ARRASTRAR" / AÑADIR) */}
+                                {/* LADO DERECHO: CATÁLOGO DE EJERCICIOS (AGRUPADOS POR NÚMERO) */}
                                 <div style={{ flex: 0.8, backgroundColor: '#0a0a0a', padding: '20px', borderRadius: '20px', border: '1px solid #222', maxHeight: '1000px', overflowY: 'auto' }}>
                                     <h4 style={{ color: '#fff', marginBottom: '20px', fontSize: '1rem' }}>Catálogo de Ejercicios</h4>
-                                    <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '20px' }}>Haz clic en el botón <span style={{ color: '#ff4d4d' }}>+</span> para añadir al bloque.</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                        {exercises.map(ex => (
-                                            <div key={ex.id} style={{ ...listItemStyle, padding: '10px 15px', justifyContent: 'space-between', backgroundColor: '#111' }}>
-                                                <div style={{ overflow: 'hidden' }}>
-                                                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#eee', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ex.name}</div>
-                                                    {ex.machines?.length > 0 && (
-                                                        <div style={{ fontSize: '0.7rem', color: '#666' }}>Máq: {ex.machines.map((m: AnyType) => m.number).join(', ')}</div>
+                                    <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '20px' }}>
+                                        {groupedExercises.some(g => g.allMachines.length > 1)
+                                            ? 'Pulsa en un ejercicio para elegir la máquina, o pulsa + para añadir directamente.'
+                                            : 'Haz clic en el botón + para añadir al bloque.'}
+                                    </p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        {groupedExercises.map(group => {
+                                            const isExpanded = expandedCatalogExercise === group.number;
+                                            const hasMachineChoice = group.allMachines.length > 1;
+
+                                            return (
+                                                <div key={group.number} style={{ borderRadius: '12px', overflow: 'hidden', border: isExpanded ? '1px solid #ff4d4d' : '1px solid #222', transition: 'border-color 0.2s' }}>
+                                                    {/* Exercise row */}
+                                                    <div style={{ ...listItemStyle, padding: '10px 15px', justifyContent: 'space-between', backgroundColor: isExpanded ? '#1a1010' : '#111', cursor: hasMachineChoice ? 'pointer' : 'default', transition: 'background-color 0.2s' }}
+                                                        onClick={() => hasMachineChoice && setExpandedCatalogExercise(isExpanded ? null : group.number)}
+                                                    >
+                                                        <div style={{ overflow: 'hidden', flex: 1 }}>
+                                                            <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#eee', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                Nº {group.number} — {group.name}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>
+                                                                {group.allMachines.length === 0
+                                                                    ? 'Sin máquina asignada'
+                                                                    : group.allMachines.length === 1
+                                                                        ? `Máq. ${group.allMachines[0].number}`
+                                                                        : `${group.allMachines.length} máquinas disponibles ${isExpanded ? '▲' : '▼'}`}
+                                                            </div>
+                                                        </div>
+                                                        {/* Direct add button: only if 0 or 1 machine */}
+                                                        {!hasMachineChoice && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const ex = group.exercises[0];
+                                                                    addExerciseToRoutine(ex, group.allMachines[0] || undefined);
+                                                                }}
+                                                                style={{ backgroundColor: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold', flexShrink: 0 }}
+                                                            >
+                                                                +
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Expanded machine picker */}
+                                                    {isExpanded && hasMachineChoice && (
+                                                        <div style={{ padding: '10px 15px', backgroundColor: '#0d0d0d', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                            <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '4px' }}>Elige la máquina:</div>
+                                                            {group.allMachines
+                                                                .sort((a: AnyType, b: AnyType) => a.number - b.number)
+                                                                .map((m: AnyType) => {
+                                                                    // Find the exercise record that contains this machine
+                                                                    const exerciseForMachine = group.exercises.find((ex: AnyType) =>
+                                                                        ex.machines?.some((em: AnyType) => em.id === m.id)
+                                                                    ) || group.exercises[0];
+
+                                                                    return (
+                                                                        <button
+                                                                            key={m.id}
+                                                                            onClick={() => addExerciseToRoutine(exerciseForMachine, m)}
+                                                                            style={{
+                                                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                                                padding: '8px 12px', backgroundColor: '#181818', border: '1px solid #333',
+                                                                                borderRadius: '8px', cursor: 'pointer', color: '#eee', fontSize: '0.85rem',
+                                                                                transition: 'background-color 0.15s, border-color 0.15s',
+                                                                                width: '100%'
+                                                                            }}
+                                                                            onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#2a1515'; (e.currentTarget as HTMLElement).style.borderColor = '#ff4d4d'; }}
+                                                                            onMouseOut={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#181818'; (e.currentTarget as HTMLElement).style.borderColor = '#333'; }}
+                                                                        >
+                                                                            <span>⚙️ Máquina {m.number} <span style={{ color: '#888', fontSize: '0.75rem' }}>({m.description})</span></span>
+                                                                            <span style={{ color: '#ff4d4d', fontWeight: 'bold', fontSize: '1rem' }}>+</span>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <button
-                                                    onClick={() => addExerciseToRoutine(ex)}
-                                                    style={{ backgroundColor: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}
-                                                >
-                                                    +
-                                                </button>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>

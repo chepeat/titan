@@ -713,7 +713,7 @@ export async function updateRoutine(routineId: string, data: RoutineData) {
                 where: { id: routineId },
                 data: {
                     name: data.name,
-                    description: data.description || undefined,
+                    description: data.description || null,
                     order: 0,
                     isTemplate: true,
                     exercises: {
