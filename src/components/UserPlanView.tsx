@@ -23,6 +23,7 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
     const [activeSession, setActiveSession] = useState<AnyType | null>(null);
     const [activeRoutineIdx, setActiveRoutineIdx] = useState<number | null>(null);
     const [currentLogs, setCurrentLogs] = useState<AnyType[]>([]);
+    const [allExercises, setAllExercises] = useState<AnyType[]>([]);
     const [warmupExercises, setWarmupExercises] = useState<AnyType[]>([]);
     const [stretchExercises, setStretchExercises] = useState<AnyType[]>([]);
     const [extraView, setExtraView] = useState<'WARMUP' | 'STRETCH' | null>(null);
@@ -30,14 +31,15 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const [planData, allExercises] = await Promise.all([
+            const [planData, fetchedExercises] = await Promise.all([
                 getTrainingPlan(planId, userId),
                 getExercises()
             ]);
             setPlan(planData);
-            if (Array.isArray(allExercises)) {
-                setWarmupExercises(allExercises.filter((ex: { type: string }) => ex.type === 'WARMUP'));
-                setStretchExercises(allExercises.filter((ex: { type: string }) => ex.type === 'STRETCH'));
+            if (Array.isArray(fetchedExercises)) {
+                setAllExercises(fetchedExercises);
+                setWarmupExercises(fetchedExercises.filter((ex: { type: string }) => ex.type === 'WARMUP'));
+                setStretchExercises(fetchedExercises.filter((ex: { type: string }) => ex.type === 'STRETCH'));
             }
             setLoading(false);
         }
@@ -122,6 +124,7 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                 userId={userId}
                 routine={activeSession.routines[activeRoutineIdx]}
                 initialLogs={currentLogs}
+                allExercises={allExercises}
                 onNext={handleNextRoutine}
                 onBack={() => {
                     setActiveRoutineIdx(null);
@@ -237,8 +240,20 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                             </div>
                                             <div style={exerciseListStyle}>
                                                 {routine.exercises.map((item: AnyType) => {
-                                                    const mainMachineId = item.machine?.id || item.exercise?.machines?.[0]?.id;
-                                                    const altMachines = (item.exercise?.machines || []).filter((m: AnyType) => m.id !== mainMachineId);
+                                                    const matchingExercises = (allExercises || []).filter(
+                                                        (ex: AnyType) => ex.number != null && item.exercise?.number != null && ex.number === item.exercise.number
+                                                    );
+                                                    const machinesFromNumberGroup = matchingExercises.flatMap((ex: AnyType) => ex.machines || []);
+                                                    const rawMachines = [
+                                                        ...(item.exercise?.machines || []),
+                                                        ...(item.machine ? [item.machine] : []),
+                                                        ...machinesFromNumberGroup
+                                                    ];
+                                                    const allMachinesForItem = Array.from(
+                                                        new Map(rawMachines.filter((m: AnyType) => m && m.id).map((m: AnyType) => [m.id, m])).values()
+                                                    );
+                                                    const mainMachine = item.machine || allMachinesForItem[0] || item.exercise?.machines?.[0];
+                                                    const altMachines = allMachinesForItem.filter((m: AnyType) => m.id !== mainMachine?.id);
 
                                                     return (
                                                         <div key={item.id} style={exerciseItemStyle}>

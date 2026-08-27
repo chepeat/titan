@@ -14,6 +14,7 @@ interface RoutineDetailViewProps {
     onBack: () => void;
     isLastRoutine: boolean;
     initialLogs: AnyType[];
+    allExercises?: AnyType[];
 }
 
 export default function RoutineDetailView({
@@ -23,7 +24,8 @@ export default function RoutineDetailView({
     onNext,
     onBack,
     isLastRoutine,
-    initialLogs
+    initialLogs,
+    allExercises = []
 }: RoutineDetailViewProps) {
     const [logs, setLogs] = useState<Record<string, number | string>>(() => {
         const initialMap: Record<string, number | string> = {};
@@ -154,10 +156,22 @@ export default function RoutineDetailView({
 
             <div style={exerciseListStyle}>
                 {routine.exercises.map((item: AnyType) => {
-                    const currentMachine = selectedMachines[item.id] || item.machine || item.exercise?.machines?.[0];
-                    const allMachinesForItem = (item.exercise?.machines && item.exercise.machines.length > 0)
-                        ? item.exercise.machines
-                        : (item.machine ? [item.machine] : []);
+                    const matchingExercises = (allExercises || []).filter(
+                        (ex: AnyType) => ex.number != null && item.exercise?.number != null && ex.number === item.exercise.number
+                    );
+                    const machinesFromNumberGroup = matchingExercises.flatMap((ex: AnyType) => ex.machines || []);
+
+                    const rawMachines = [
+                        ...(item.exercise?.machines || []),
+                        ...(item.machine ? [item.machine] : []),
+                        ...machinesFromNumberGroup
+                    ];
+
+                    const allMachinesForItem = Array.from(
+                        new Map(rawMachines.filter((m: AnyType) => m && m.id).map((m: AnyType) => [m.id, m])).values()
+                    );
+
+                    const currentMachine = selectedMachines[item.id] || item.machine || allMachinesForItem[0] || item.exercise?.machines?.[0];
                     const hasAlternatives = allMachinesForItem.length > 1;
                     const isSwitching = switchingMachineItemId === item.id;
 
