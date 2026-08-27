@@ -544,7 +544,9 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
             exercise: item.exercise,
             series: item.series,
             reps: item.reps,
-            restingTime: item.restingTime
+            restingTime: item.restingTime,
+            machineId: item.machineId || item.machine?.id || null,
+            machine: item.machine || null
         })));
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -793,27 +795,50 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                                                     style={smallInputStyle}
                                                                 />
                                                             </div>
-                                                            <div style={{ width: '120px' }}>
+                                                            <div style={{ width: '140px' }}>
                                                                 <label style={microLabelStyle}>Máquina por defecto</label>
                                                                 <select
                                                                     value={item.machineId || ''}
                                                                     onChange={(e) => {
                                                                         const mId = e.target.value;
-                                                                        const m = item.exercise.machines?.find((mac: AnyType) => mac.id === mId) || null;
+                                                                        const m = item.exercise?.machines?.find((mac: AnyType) => mac.id === mId)
+                                                                               || machines.find((mac: AnyType) => mac.id === mId)
+                                                                               || null;
                                                                         const newItems = [...routineItems];
                                                                         newItems[idx] = { ...newItems[idx], machineId: mId || null, machine: m };
                                                                         setRoutineItems(newItems);
                                                                     }}
                                                                     style={smallInputStyle}
-                                                                    disabled={!item.exercise.machines || item.exercise.machines.length <= 1}
                                                                 >
-                                                                    {(!item.exercise.machines || item.exercise.machines.length === 0) ? (
-                                                                        <option value="">Sin máquina</option>
-                                                                    ) : (
-                                                                        item.exercise.machines.map((m: AnyType) => (
-                                                                            <option key={m.id} value={m.id}>Máquina {m.number}</option>
-                                                                        ))
-                                                                    )}
+                                                                    {(() => {
+                                                                        const exerciseMachines = item.exercise?.machines || [];
+                                                                        const exerciseMachineIds = new Set(exerciseMachines.map((m: AnyType) => m.id));
+                                                                        const otherMachines = machines.filter((m: AnyType) => !exerciseMachineIds.has(m.id));
+
+                                                                        return (
+                                                                            <>
+                                                                                <option value="">Sin máquina</option>
+                                                                                {exerciseMachines.length > 0 && (
+                                                                                    <optgroup label="Máquinas del ejercicio">
+                                                                                        {exerciseMachines.map((m: AnyType) => (
+                                                                                            <option key={m.id} value={m.id}>
+                                                                                                Máquina {m.number} ({m.description})
+                                                                                            </option>
+                                                                                        ))}
+                                                                                    </optgroup>
+                                                                                )}
+                                                                                {otherMachines.length > 0 && (
+                                                                                    <optgroup label={exerciseMachines.length > 0 ? "Otras máquinas" : "Todas las máquinas"}>
+                                                                                        {otherMachines.map((m: AnyType) => (
+                                                                                            <option key={m.id} value={m.id}>
+                                                                                                Máquina {m.number} ({m.description})
+                                                                                            </option>
+                                                                                        ))}
+                                                                                    </optgroup>
+                                                                                )}
+                                                                            </>
+                                                                        );
+                                                                    })()}
                                                                 </select>
                                                             </div>
                                                         </div>
