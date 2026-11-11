@@ -35,6 +35,20 @@ import WorkoutPDFExporter from './WorkoutPDFExporter';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyType = any;
 
+const MUSCLE_GROUPS = [
+    'Pecho',
+    'Espalda',
+    'Pierna',
+    'Hombro',
+    'Bíceps',
+    'Tríceps',
+    'Abdominal',
+    'Glúteo',
+    'Cardio',
+    'Movilidad',
+    'Estiramiento'
+] as const;
+
 export default function TrainerDashboard({ coachId }: { coachId: string }) {
     const router = useRouter();
     const [view, setView] = useState<'hub' | 'plans' | 'exercises' | 'machines' | 'routines' | 'sessions' | 'weeks' | 'users'>('hub');
@@ -56,6 +70,13 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
     const [editingSession, setEditingSession] = useState<AnyType | null>(null);
     const [editingWeek, setEditingWeek] = useState<AnyType | null>(null);
     const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([]);
+    const [selectedMuscleGroups, setSelectedMuscleGroups] = useState<string[]>([]);
+
+    // Filter states for Exercise Catalog & Routine Builder
+    const [routineCatalogMuscleFilter, setRoutineCatalogMuscleFilter] = useState<string>('ALL');
+    const [routineCatalogSearch, setRoutineCatalogSearch] = useState<string>('');
+    const [exerciseCatalogMuscleFilter, setExerciseCatalogMuscleFilter] = useState<string>('ALL');
+    const [exerciseCatalogSearch, setExerciseCatalogSearch] = useState<string>('');
 
     // Routine construction state
     const [routineItems, setRoutineItems] = useState<AnyType[]>([]);
@@ -125,6 +146,8 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
         fetchData();
         // Reset edit states when changing view
         setEditingExercise(null);
+        setSelectedMachineIds([]);
+        setSelectedMuscleGroups([]);
         setEditingMachine(null);
         setEditingRoutine(null);
         setRoutineItems([]);
@@ -257,6 +280,7 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
             setEditingExercise(null);
             setExerciseVideoFileName('');
             setSelectedMachineIds([]);
+            setSelectedMuscleGroups([]);
             // Re-fetch exercises to ensure catalog is up to date
             const freshExercises = await getExercises();
             setExercises(freshExercises);
@@ -423,10 +447,10 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
     // ROUTINE EDITOR HELPERS
     // Group exercises by number for the catalog display
     const groupedExercises = useMemo(() => {
-        const groups: Record<number, { name: string; description: string | null; exercises: AnyType[]; allMachines: AnyType[] }> = {};
+        const groups: Record<number, { name: string; description: string | null; exercises: AnyType[]; allMachines: AnyType[]; allMuscleGroups: string[] }> = {};
         exercises.forEach((ex: AnyType) => {
             if (!groups[ex.number]) {
-                groups[ex.number] = { name: ex.name, description: ex.description, exercises: [], allMachines: [] };
+                groups[ex.number] = { name: ex.name, description: ex.description, exercises: [], allMachines: [], allMuscleGroups: [] };
             }
             groups[ex.number].exercises.push(ex);
             (ex.machines || []).forEach((m: AnyType) => {
@@ -434,11 +458,57 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                     groups[ex.number].allMachines.push(m);
                 }
             });
+            (ex.muscleGroups || []).forEach((mg: string) => {
+                if (!groups[ex.number].allMuscleGroups.includes(mg)) {
+                    groups[ex.number].allMuscleGroups.push(mg);
+                }
+            });
         });
         return Object.entries(groups)
             .sort(([a], [b]) => Number(a) - Number(b))
             .map(([num, data]) => ({ number: Number(num), ...data }));
     }, [exercises]);
+
+    const filteredGroupedExercises = useMemo(() => {
+        return groupedExercises.filter(group => {
+            const matchesMuscle =
+                routineCatalogMuscleFilter === 'ALL'
+                    ? true
+                    : routineCatalogMuscleFilter === 'NONE'
+                        ? group.allMuscleGroups.length === 0
+                        : group.allMuscleGroups.includes(routineCatalogMuscleFilter);
+
+            const q = routineCatalogSearch.trim().toLowerCase();
+            const matchesSearch =
+                !q ||
+                group.name.toLowerCase().includes(q) ||
+                String(group.number).includes(q) ||
+                group.allMuscleGroups.some(mg => mg.toLowerCase().includes(q));
+
+            return matchesMuscle && matchesSearch;
+        });
+    }, [groupedExercises, routineCatalogMuscleFilter, routineCatalogSearch]);
+
+    const filteredExercises = useMemo(() => {
+        return exercises.filter((ex: AnyType) => {
+            const mgs: string[] = ex.muscleGroups || [];
+            const matchesMuscle =
+                exerciseCatalogMuscleFilter === 'ALL'
+                    ? true
+                    : exerciseCatalogMuscleFilter === 'NONE'
+                        ? mgs.length === 0
+                        : mgs.includes(exerciseCatalogMuscleFilter);
+
+            const q = exerciseCatalogSearch.trim().toLowerCase();
+            const matchesSearch =
+                !q ||
+                (ex.name || '').toLowerCase().includes(q) ||
+                String(ex.number ?? '').includes(q) ||
+                mgs.some(mg => mg.toLowerCase().includes(q));
+
+            return matchesMuscle && matchesSearch;
+        });
+    }, [exercises, exerciseCatalogMuscleFilter, exerciseCatalogSearch]);
 
     const addExerciseToRoutine = (exercise: AnyType, machine?: AnyType) => {
         setRoutineItems(prev => [
@@ -507,6 +577,7 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
         setEditingExercise(ex);
         const machineIds = ex.machines?.map((m: AnyType) => m.id) || [];
         setSelectedMachineIds(machineIds);
+        setSelectedMuscleGroups(ex.muscleGroups || []);
         setMessage('');
 
         setTimeout(() => {
@@ -580,6 +651,12 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
     const toggleMachineSelection = (id: string) => {
         setSelectedMachineIds(prev =>
             prev.includes(id) ? prev.filter(mId => mId !== id) : [...prev, id]
+        );
+    };
+
+    const toggleMuscleGroupSelection = (group: string) => {
+        setSelectedMuscleGroups(prev =>
+            prev.includes(group) ? prev.filter(g => g !== group) : [...prev, group]
         );
     };
 
@@ -917,14 +994,70 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
 
                                 {/* LADO DERECHO: CATÁLOGO DE EJERCICIOS (AGRUPADOS POR NÚMERO) */}
                                 <div style={{ flex: 0.8, backgroundColor: '#0a0a0a', padding: '20px', borderRadius: '20px', border: '1px solid #222', maxHeight: '1000px', overflowY: 'auto' }}>
-                                    <h4 style={{ color: '#fff', marginBottom: '20px', fontSize: '1rem' }}>Catálogo de Ejercicios</h4>
-                                    <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '20px' }}>
-                                        {groupedExercises.some(g => g.allMachines.length > 1)
+                                    <h4 style={{ color: '#fff', marginBottom: '12px', fontSize: '1rem' }}>Catálogo de Ejercicios</h4>
+
+                                    {/* Buscador y Filtro por Grupo Muscular */}
+                                    <div style={{ marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        <input
+                                            type="text"
+                                            value={routineCatalogSearch}
+                                            onChange={(e) => setRoutineCatalogSearch(e.target.value)}
+                                            placeholder="🔍 Buscar por nombre, Nº o grupo muscular..."
+                                            style={{ ...inputStyle, padding: '8px 12px', fontSize: '0.85rem' }}
+                                        />
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setRoutineCatalogMuscleFilter('ALL')}
+                                                style={{
+                                                    padding: '4px 10px',
+                                                    borderRadius: '14px',
+                                                    fontSize: '0.75rem',
+                                                    cursor: 'pointer',
+                                                    border: routineCatalogMuscleFilter === 'ALL' ? '1px solid #ff4d4d' : '1px solid #333',
+                                                    backgroundColor: routineCatalogMuscleFilter === 'ALL' ? '#ff4d4d' : '#161616',
+                                                    color: routineCatalogMuscleFilter === 'ALL' ? '#fff' : '#aaa',
+                                                    fontWeight: routineCatalogMuscleFilter === 'ALL' ? 'bold' : 'normal'
+                                                }}
+                                            >
+                                                Todos ({groupedExercises.length})
+                                            </button>
+                                            {MUSCLE_GROUPS.map(mg => {
+                                                const active = routineCatalogMuscleFilter === mg;
+                                                return (
+                                                    <button
+                                                        key={mg}
+                                                        type="button"
+                                                        onClick={() => setRoutineCatalogMuscleFilter(active ? 'ALL' : mg)}
+                                                        style={{
+                                                            padding: '4px 10px',
+                                                            borderRadius: '14px',
+                                                            fontSize: '0.75rem',
+                                                            cursor: 'pointer',
+                                                            border: active ? '1px solid #ff4d4d' : '1px solid #333',
+                                                            backgroundColor: active ? '#ff4d4d' : '#161616',
+                                                            color: active ? '#fff' : '#aaa',
+                                                            fontWeight: active ? 'bold' : 'normal'
+                                                        }}
+                                                    >
+                                                        {mg}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '15px' }}>
+                                        {filteredGroupedExercises.some(g => g.allMachines.length > 1)
                                             ? 'Pulsa en un ejercicio para elegir la máquina, o pulsa + para añadir directamente.'
                                             : 'Haz clic en el botón + para añadir al bloque.'}
                                     </p>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                        {groupedExercises.map(group => {
+                                        {filteredGroupedExercises.length === 0 ? (
+                                            <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '0.85rem', border: '1px dashed #222', borderRadius: '12px' }}>
+                                                No se encontraron ejercicios con ese filtro.
+                                            </div>
+                                        ) : filteredGroupedExercises.map(group => {
                                             const isExpanded = expandedCatalogExercise === group.number;
                                             const hasMachineChoice = group.allMachines.length > 1;
 
@@ -934,11 +1067,30 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                                     <div style={{ ...listItemStyle, padding: '10px 15px', justifyContent: 'space-between', backgroundColor: isExpanded ? '#1a1010' : '#111', cursor: hasMachineChoice ? 'pointer' : 'default', transition: 'background-color 0.2s' }}
                                                         onClick={() => hasMachineChoice && setExpandedCatalogExercise(isExpanded ? null : group.number)}
                                                     >
-                                                        <div style={{ overflow: 'hidden', flex: 1 }}>
+                                                        <div style={{ overflow: 'hidden', flex: 1, paddingRight: '8px' }}>
                                                             <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#eee', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                 Nº {group.number} — {group.name}
                                                             </div>
-                                                            <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>
+                                                            {group.allMuscleGroups.length > 0 && (
+                                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                                                                    {group.allMuscleGroups.map((mg: string) => (
+                                                                        <span
+                                                                            key={mg}
+                                                                            style={{
+                                                                                fontSize: '0.65rem',
+                                                                                padding: '1px 6px',
+                                                                                borderRadius: '8px',
+                                                                                backgroundColor: 'rgba(255, 77, 77, 0.15)',
+                                                                                border: '1px solid rgba(255, 77, 77, 0.4)',
+                                                                                color: '#ff8a8a'
+                                                                            }}
+                                                                        >
+                                                                            {mg}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '3px' }}>
                                                                 {group.allMachines.length === 0
                                                                     ? 'Sin máquina asignada'
                                                                     : group.allMachines.length === 1
@@ -1161,6 +1313,42 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                     </div>
                                 </div>
                                 <div style={{ marginBottom: '20px' }}>
+                                    <label style={labelStyle}>Grupos Musculares (Puedes seleccionar varios)</label>
+                                    {selectedMuscleGroups.map(mg => (
+                                        <input key={mg} type="hidden" name="muscleGroups" value={mg} />
+                                    ))}
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                                        {MUSCLE_GROUPS.map(mg => {
+                                            const isSelected = selectedMuscleGroups.includes(mg);
+                                            return (
+                                                <button
+                                                    key={mg}
+                                                    type="button"
+                                                    onClick={() => toggleMuscleGroupSelection(mg)}
+                                                    style={{
+                                                        padding: '8px 14px',
+                                                        borderRadius: '20px',
+                                                        fontSize: '0.85rem',
+                                                        cursor: 'pointer',
+                                                        border: isSelected ? '1px solid #ff4d4d' : '1px solid #333',
+                                                        backgroundColor: isSelected ? 'rgba(255, 77, 77, 0.2)' : '#111',
+                                                        color: isSelected ? '#fff' : '#888',
+                                                        fontWeight: isSelected ? 'bold' : 'normal',
+                                                        transition: 'all 0.15s ease'
+                                                    }}
+                                                >
+                                                    {isSelected ? `✓ ${mg}` : mg}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {selectedMuscleGroups.length === 0 && (
+                                        <p style={{ fontSize: '0.8rem', color: '#666', margin: '6px 0 0 0' }}>
+                                            Ningún grupo muscular seleccionado. Pulsa sobre uno o varios para asignarlos.
+                                        </p>
+                                    )}
+                                </div>
+                                <div style={{ marginBottom: '20px' }}>
                                     <label style={labelStyle}>Máquinas Asociadas (Selecciona para asignar)</label>
 
                                     {/* Campos ocultos para enviar con FormData */}
@@ -1253,21 +1441,86 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                         {uploading ? 'Guardando...' : (editingExercise ? 'Actualizar Ejercicio' : 'Guardar Ejercicio')}
                                     </button>
                                     {editingExercise && (
-                                        <button type="button" onClick={() => { setEditingExercise(null); setSelectedMachineIds([]); exerciseFormRef.current?.reset(); }} style={cancelButtonStyle}>
+                                        <button type="button" onClick={() => { setEditingExercise(null); setSelectedMachineIds([]); setSelectedMuscleGroups([]); exerciseFormRef.current?.reset(); }} style={cancelButtonStyle}>
                                             Cancelar
                                         </button>
                                     )}
                                 </div>
                             </form>
                             <div style={listStyle}>
-                                <h4 style={{ color: '#888', marginBottom: '15px' }}>Catálogo Actual</h4>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', marginBottom: '15px' }}>
+                                    <h4 style={{ color: '#888', margin: 0 }}>Catálogo Actual ({filteredExercises.length} de {exercises.length})</h4>
+                                    <input
+                                        type="text"
+                                        value={exerciseCatalogSearch}
+                                        onChange={(e) => setExerciseCatalogSearch(e.target.value)}
+                                        placeholder="🔍 Buscar ejercicio por nombre, Nº o grupo muscular..."
+                                        style={{ ...inputStyle, maxWidth: '340px', padding: '8px 14px', fontSize: '0.85rem' }}
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '20px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setExerciseCatalogMuscleFilter('ALL')}
+                                        style={{
+                                            padding: '5px 12px',
+                                            borderRadius: '16px',
+                                            fontSize: '0.8rem',
+                                            cursor: 'pointer',
+                                            border: exerciseCatalogMuscleFilter === 'ALL' ? '1px solid #ff4d4d' : '1px solid #333',
+                                            backgroundColor: exerciseCatalogMuscleFilter === 'ALL' ? '#ff4d4d' : '#161616',
+                                            color: exerciseCatalogMuscleFilter === 'ALL' ? '#fff' : '#aaa',
+                                            fontWeight: exerciseCatalogMuscleFilter === 'ALL' ? 'bold' : 'normal'
+                                        }}
+                                    >
+                                        Todos
+                                    </button>
+                                    {MUSCLE_GROUPS.map(mg => {
+                                        const active = exerciseCatalogMuscleFilter === mg;
+                                        return (
+                                            <button
+                                                key={mg}
+                                                type="button"
+                                                onClick={() => setExerciseCatalogMuscleFilter(active ? 'ALL' : mg)}
+                                                style={{
+                                                    padding: '5px 12px',
+                                                    borderRadius: '16px',
+                                                    fontSize: '0.8rem',
+                                                    cursor: 'pointer',
+                                                    border: active ? '1px solid #ff4d4d' : '1px solid #333',
+                                                    backgroundColor: active ? '#ff4d4d' : '#161616',
+                                                    color: active ? '#fff' : '#aaa',
+                                                    fontWeight: active ? 'bold' : 'normal'
+                                                }}
+                                            >
+                                                {mg}
+                                            </button>
+                                        );
+                                    })}
+                                    <button
+                                        type="button"
+                                        onClick={() => setExerciseCatalogMuscleFilter(exerciseCatalogMuscleFilter === 'NONE' ? 'ALL' : 'NONE')}
+                                        style={{
+                                            padding: '5px 12px',
+                                            borderRadius: '16px',
+                                            fontSize: '0.8rem',
+                                            cursor: 'pointer',
+                                            border: exerciseCatalogMuscleFilter === 'NONE' ? '1px solid #ff4d4d' : '1px solid #333',
+                                            backgroundColor: exerciseCatalogMuscleFilter === 'NONE' ? '#ff4d4d' : '#161616',
+                                            color: exerciseCatalogMuscleFilter === 'NONE' ? '#fff' : '#aaa',
+                                            fontWeight: exerciseCatalogMuscleFilter === 'NONE' ? 'bold' : 'normal'
+                                        }}
+                                    >
+                                        Sin grupo
+                                    </button>
+                                </div>
                                 {loading ? <p>Cargando...</p> : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                        {exercises.map(ex => (
+                                        {filteredExercises.map(ex => (
                                             <div key={ex.id} style={listItemStyle}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '100%', overflow: 'hidden' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                                             <strong>{ex.number != null ? `Nº ${ex.number} — ` : ''}{ex.name}</strong>
                                                             <span style={{ 
                                                                 fontSize: '0.7rem', 
@@ -1278,6 +1531,21 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                                             }}>
                                                                 {ex.type === 'WARMUP' ? 'Calentamiento' : ex.type === 'STRETCH' ? 'Estiramiento' : 'Entrenamiento'}
                                                             </span>
+                                                            {(ex.muscleGroups || []).map((mg: string) => (
+                                                                <span
+                                                                    key={mg}
+                                                                    style={{
+                                                                        fontSize: '0.7rem',
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '10px',
+                                                                        backgroundColor: 'rgba(255, 77, 77, 0.15)',
+                                                                        border: '1px solid rgba(255, 77, 77, 0.4)',
+                                                                        color: '#ff8a8a'
+                                                                    }}
+                                                                >
+                                                                    💪 {mg}
+                                                                </span>
+                                                            ))}
                                                         </div>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                                             <span style={{ fontSize: '0.8rem', color: '#666' }}>

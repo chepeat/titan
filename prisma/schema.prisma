@@ -101,6 +101,7 @@ model Exercise {
   videoUrl     String?
   observations String?
   type         ExerciseType  @default(TRAINING)
+  muscleGroups String[]      @default([])
   routines     RoutineItem[]
   machines     Machine[]     @relation("ExerciseMachines")
   exerciseLogs ExerciseLog[]

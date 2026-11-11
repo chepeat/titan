@@ -106,6 +106,7 @@ export async function createExercise(formData: FormData) {
     const videoFileUrl = formData.get('videoFileUrl') as string; // URL from client-side upload
     const type = (formData.get('type') as string) || 'TRAINING';
     const machineIds = formData.getAll('machineIds') as string[];
+    const muscleGroups = formData.getAll('muscleGroups') as string[];
 
     const duplicateError = await checkDuplicateNumberAndMachine(number, machineIds);
     if (duplicateError) {
@@ -147,6 +148,7 @@ export async function createExercise(formData: FormData) {
                 description,
                 observations,
                 type: type as ExerciseType,
+                muscleGroups,
                 videoFile: videoUrl || null,
                 videoUrl: videoUrlInput ? videoUrlInput.trim() : null,
                 machines: {
@@ -173,6 +175,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
     const videoFileUrl = formData.get('videoFileUrl') as string; // URL from client-side upload
     const type = formData.get('type') as string;
     const machineIds = formData.getAll('machineIds') as string[];
+    const muscleGroups = formData.getAll('muscleGroups') as string[];
 
     const duplicateError = await checkDuplicateNumberAndMachine(number, machineIds, exerciseId);
     if (duplicateError) {
@@ -188,6 +191,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
             observations,
             videoUrl: videoUrlInput ? videoUrlInput.trim() : null,
             type: type ? (type as ExerciseType) : undefined,
+            muscleGroups,
             machines: {
                 set: machineIds.map(id => ({ id }))
             }
