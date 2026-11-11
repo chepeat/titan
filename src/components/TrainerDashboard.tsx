@@ -1271,6 +1271,65 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                         </select>
                                     </div>
                                 </div>
+                                <div style={{ marginBottom: '20px' }}>
+                                    <label style={labelStyle}>Grupos Musculares (Selecciona uno o varios)</label>
+                                    {selectedMuscleGroups.map(mg => (
+                                        <input key={mg} type="hidden" name="muscleGroups" value={mg} />
+                                    ))}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                                        <select
+                                            style={{
+                                                ...inputStyle,
+                                                cursor: 'pointer',
+                                                borderColor: '#333',
+                                                backgroundColor: '#111',
+                                                color: '#fff'
+                                            }}
+                                            value=""
+                                            onChange={(e) => {
+                                                const mg = e.target.value;
+                                                if (mg && !selectedMuscleGroups.includes(mg)) {
+                                                    setSelectedMuscleGroups([...selectedMuscleGroups, mg]);
+                                                }
+                                            }}
+                                        >
+                                            <option value="" disabled>-- Añadir grupo muscular de la lista --</option>
+                                            {MUSCLE_GROUPS.map(mg => {
+                                                const isSelected = selectedMuscleGroups.includes(mg);
+                                                return (
+                                                    <option key={mg} value={mg} disabled={isSelected}>
+                                                        {isSelected ? '✓ ' : ''}{mg}
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                            {MUSCLE_GROUPS.map(mg => {
+                                                const isSelected = selectedMuscleGroups.includes(mg);
+                                                return (
+                                                    <button
+                                                        key={mg}
+                                                        type="button"
+                                                        onClick={() => toggleMuscleGroupSelection(mg)}
+                                                        style={{
+                                                            padding: '6px 12px',
+                                                            borderRadius: '20px',
+                                                            fontSize: '0.82rem',
+                                                            cursor: 'pointer',
+                                                            border: isSelected ? '1px solid #ff4d4d' : '1px solid #333',
+                                                            backgroundColor: isSelected ? 'rgba(255, 77, 77, 0.2)' : '#111',
+                                                            color: isSelected ? '#fff' : '#888',
+                                                            fontWeight: isSelected ? 'bold' : 'normal',
+                                                            transition: 'all 0.15s ease'
+                                                        }}
+                                                    >
+                                                        {isSelected ? `✓ ${mg} ✕` : `+ ${mg}`}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
                                 <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
                                     <div style={{ flex: 1 }}>
                                         <label style={labelStyle}>Descripción Técnica</label>
@@ -1311,42 +1370,6 @@ export default function TrainerDashboard({ coachId }: { coachId: string }) {
                                             {uploading ? '⬆️ Subiendo...' : (exerciseVideoFileName ? `✅ ${exerciseVideoFileName}` : '📹 Subir nuevo vídeo')}
                                         </label>
                                     </div>
-                                </div>
-                                <div style={{ marginBottom: '20px' }}>
-                                    <label style={labelStyle}>Grupos Musculares (Puedes seleccionar varios)</label>
-                                    {selectedMuscleGroups.map(mg => (
-                                        <input key={mg} type="hidden" name="muscleGroups" value={mg} />
-                                    ))}
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
-                                        {MUSCLE_GROUPS.map(mg => {
-                                            const isSelected = selectedMuscleGroups.includes(mg);
-                                            return (
-                                                <button
-                                                    key={mg}
-                                                    type="button"
-                                                    onClick={() => toggleMuscleGroupSelection(mg)}
-                                                    style={{
-                                                        padding: '8px 14px',
-                                                        borderRadius: '20px',
-                                                        fontSize: '0.85rem',
-                                                        cursor: 'pointer',
-                                                        border: isSelected ? '1px solid #ff4d4d' : '1px solid #333',
-                                                        backgroundColor: isSelected ? 'rgba(255, 77, 77, 0.2)' : '#111',
-                                                        color: isSelected ? '#fff' : '#888',
-                                                        fontWeight: isSelected ? 'bold' : 'normal',
-                                                        transition: 'all 0.15s ease'
-                                                    }}
-                                                >
-                                                    {isSelected ? `✓ ${mg}` : mg}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    {selectedMuscleGroups.length === 0 && (
-                                        <p style={{ fontSize: '0.8rem', color: '#666', margin: '6px 0 0 0' }}>
-                                            Ningún grupo muscular seleccionado. Pulsa sobre uno o varios para asignarlos.
-                                        </p>
-                                    )}
                                 </div>
                                 <div style={{ marginBottom: '20px' }}>
                                     <label style={labelStyle}>Máquinas Asociadas (Selecciona para asignar)</label>
