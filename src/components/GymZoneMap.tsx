@@ -52,32 +52,32 @@ interface GymZoneMapProps {
     machineNumber?: number | null;
     machineDescription?: string | null;
     compact?: boolean;
+    allowExpand?: boolean;
 }
 
 export default function GymZoneMap({
     machineNumber,
     machineDescription,
-    compact = false
+    compact = false,
+    allowExpand = true
 }: GymZoneMapProps) {
     const [expanded, setExpanded] = useState(false);
     const activeZone = getMachineZone(machineNumber);
 
-    if (!activeZone) return null;
-
     const renderMapGraphic = (isModal = false) => (
         <div
-            onClick={() => !isModal && setExpanded(true)}
+            onClick={() => allowExpand && !isModal && setExpanded(true)}
             style={{
                 position: 'relative',
                 width: '100%',
                 borderRadius: isModal ? '14px' : '12px',
                 overflow: 'hidden',
-                border: '1px solid rgba(255, 77, 77, 0.4)',
+                border: '2px solid rgba(255, 77, 77, 0.55)',
                 backgroundColor: '#050505',
-                cursor: isModal ? 'default' : 'zoom-in',
-                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.45)'
+                cursor: allowExpand && !isModal ? 'zoom-in' : 'default',
+                boxShadow: '0 8px 25px rgba(0, 0, 0, 0.5)'
             }}
-            title={isModal ? undefined : 'Pulsa para ampliar el plano'}
+            title={allowExpand && !isModal ? 'Pulsa para ampliar el plano' : undefined}
         >
             <img
                 src="/gym-map.jpg"
@@ -86,7 +86,7 @@ export default function GymZoneMap({
                     width: '100%',
                     height: 'auto',
                     display: 'block',
-                    filter: 'brightness(0.75) contrast(1.05)'
+                    filter: 'brightness(0.78) contrast(1.05)'
                 }}
             />
 
@@ -102,7 +102,7 @@ export default function GymZoneMap({
                 }}
             >
                 {GYM_ZONES.map(zone => {
-                    const isActive = zone.id === activeZone.id;
+                    const isActive = activeZone ? zone.id === activeZone.id : false;
                     const pointsAttr = zone.points.map(p => p.join(',')).join(' ');
                     const [lx, ly] = zone.labelPos;
 
@@ -110,53 +110,57 @@ export default function GymZoneMap({
                         <g key={zone.id}>
                             <polygon
                                 points={pointsAttr}
-                                fill={isActive ? 'rgba(255, 77, 77, 0.42)' : 'rgba(15, 15, 15, 0.45)'}
-                                stroke={isActive ? '#ff4d4d' : 'rgba(255, 255, 255, 0.3)'}
-                                strokeWidth={isActive ? '1.1' : '0.4'}
+                                fill={
+                                    isActive
+                                        ? 'rgba(255, 77, 77, 0.45)'
+                                        : activeZone
+                                        ? 'rgba(10, 10, 10, 0.5)'
+                                        : 'rgba(255, 77, 77, 0.18)'
+                                }
+                                stroke={isActive ? '#ff4d4d' : 'rgba(255, 255, 255, 0.35)'}
+                                strokeWidth={isActive ? '1.2' : '0.45'}
                                 strokeDasharray={isActive ? undefined : '1.5,1'}
                             />
 
                             {/* Zone label badge */}
                             <rect
-                                x={lx - 10}
-                                y={ly - (isActive ? 7.5 : 5)}
-                                width="20"
-                                height={isActive ? '15' : '10'}
+                                x={lx - 11}
+                                y={ly - (isActive ? 8 : 5.5)}
+                                width="22"
+                                height={isActive ? '16' : '11'}
                                 rx="2.5"
-                                fill={isActive ? '#ff4d4d' : 'rgba(0, 0, 0, 0.72)'}
-                                stroke={isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.25)'}
-                                strokeWidth={isActive ? '0.5' : '0.25'}
+                                fill={isActive ? '#ff4d4d' : 'rgba(0, 0, 0, 0.78)'}
+                                stroke={isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.3)'}
+                                strokeWidth={isActive ? '0.6' : '0.3'}
                             />
                             <text
                                 x={lx}
-                                y={isActive ? ly - 1.5 : ly + 0.5}
+                                y={isActive ? ly - 2 : ly - 1}
                                 textAnchor="middle"
                                 dominantBaseline="middle"
                                 fill="#ffffff"
-                                fontSize={isActive ? '4.2' : '3.3'}
+                                fontSize={isActive ? '4.2' : '3.2'}
                                 fontWeight="900"
                             >
                                 {zone.name.toUpperCase()}
                             </text>
-                            {isActive && (
-                                <text
-                                    x={lx}
-                                    y={ly + 4}
-                                    textAnchor="middle"
-                                    dominantBaseline="middle"
-                                    fill="#ffe4e4"
-                                    fontSize="2.7"
-                                    fontWeight="700"
-                                >
-                                    MÁQ. {machineNumber}
-                                </text>
-                            )}
+                            <text
+                                x={lx}
+                                y={isActive ? ly + 3.8 : ly + 3}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                fill={isActive ? '#ffe4e4' : '#cccccc'}
+                                fontSize={isActive ? '2.7' : '2.1'}
+                                fontWeight="700"
+                            >
+                                {isActive && machineNumber ? `MÁQ. ${machineNumber}` : zone.rangeLabel}
+                            </text>
                         </g>
                     );
                 })}
             </svg>
 
-            {!isModal && (
+            {allowExpand && !isModal && (
                 <div
                     style={{
                         position: 'absolute',
@@ -200,24 +204,28 @@ export default function GymZoneMap({
                     gap: '8px'
                 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span
                         style={{
                             backgroundColor: '#ff4d4d',
                             color: '#fff',
                             fontWeight: 900,
-                            fontSize: '0.8rem',
-                            padding: '4px 10px',
+                            fontSize: compact ? '0.85rem' : '0.95rem',
+                            padding: '5px 12px',
                             borderRadius: '999px',
                             letterSpacing: '0.4px'
                         }}
                     >
-                        📍 {activeZone.name.toUpperCase()} ({activeZone.positionLabel})
+                        {activeZone
+                            ? `📍 ${activeZone.name.toUpperCase()} (${activeZone.positionLabel})`
+                            : '📍 PLANO DEL GIMNASIO (Zonas A, B y C)'}
                     </span>
-                    <span style={{ fontSize: '0.85rem', color: '#bbb', fontWeight: 600 }}>
-                        Máquina Nº {machineNumber}
-                        {machineDescription ? ` · ${machineDescription}` : ''}
-                    </span>
+                    {machineNumber && (
+                        <span style={{ fontSize: '0.9rem', color: '#ddd', fontWeight: 700 }}>
+                            Máquina Nº {machineNumber}
+                            {machineDescription ? ` · ${machineDescription}` : ''}
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -261,12 +269,16 @@ export default function GymZoneMap({
                         >
                             <div>
                                 <div style={{ color: '#ff4d4d', fontWeight: 900, fontSize: '1.1rem' }}>
-                                    📍 {activeZone.name.toUpperCase()} — {activeZone.positionLabel}
+                                    {activeZone
+                                        ? `📍 ${activeZone.name.toUpperCase()} — ${activeZone.positionLabel}`
+                                        : '📍 PLANO DEL GIMNASIO'}
                                 </div>
-                                <div style={{ color: '#aaa', fontSize: '0.85rem' }}>
-                                    Máquina Nº {machineNumber}
-                                    {machineDescription ? ` (${machineDescription})` : ''}
-                                </div>
+                                {machineNumber && (
+                                    <div style={{ color: '#aaa', fontSize: '0.85rem' }}>
+                                        Máquina Nº {machineNumber}
+                                        {machineDescription ? ` (${machineDescription})` : ''}
+                                    </div>
+                                )}
                             </div>
                             <button
                                 onClick={() => setExpanded(false)}

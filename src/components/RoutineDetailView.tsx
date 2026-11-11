@@ -42,6 +42,7 @@ export default function RoutineDetailView({
     const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
     const [selectedMachines, setSelectedMachines] = useState<Record<string, AnyType>>({});
     const [switchingMachineItemId, setSwitchingMachineItemId] = useState<string | null>(null);
+    const [showZoneIntro, setShowZoneIntro] = useState(true);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const [isMobile, setIsMobile] = useState(false);
 
@@ -57,6 +58,7 @@ export default function RoutineDetailView({
         setTimerSeconds(null);
         setSelectedMachines({});
         setSwitchingMachineItemId(null);
+        setShowZoneIntro(true);
         if (timerRef.current) clearInterval(timerRef.current);
 
         // Reset logs when routine changes to avoid carrying over weights from previous routine
@@ -142,37 +144,130 @@ export default function RoutineDetailView({
         return clean.includes('youtube.com') || clean.includes('youtu.be');
     };
 
+    const resolveItemMachine = (item: AnyType) => {
+        const matchingExercises = (allExercises || []).filter(
+            (ex: AnyType) => ex.number != null && item.exercise?.number != null && ex.number === item.exercise.number
+        );
+        const machinesFromNumberGroup = matchingExercises.flatMap((ex: AnyType) => ex.machines || []);
+
+        const rawMachines = [
+            ...(item.exercise?.machines || []),
+            ...(item.machine ? [item.machine] : []),
+            ...machinesFromNumberGroup
+        ];
+
+        const allMachinesForItem = Array.from(
+            new Map(rawMachines.filter((m: AnyType) => m && m.id).map((m: AnyType) => [m.id, m])).values()
+        );
+
+        const currentMachine = selectedMachines[item.id] || item.machine || allMachinesForItem[0] || item.exercise?.machines?.[0];
+        return { matchingExercises, allMachinesForItem, currentMachine };
+    };
+
+    if (showZoneIntro) {
+        return (
+            <div style={containerStyle}>
+                <div style={headerStyle(isMobile, false)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', width: '100%' }}>
+                        <button onClick={onBack} style={{ ...backButtonStyle, padding: '6px 10px', marginBottom: 0 }}>←</button>
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                            <span style={{ fontSize: '0.75rem', color: '#ff8a8a', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                                📍 UBICACIÓN DE LA RUTINA
+                            </span>
+                            <h2 style={{ ...titleStyle(isMobile), margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {routine.name}
+                            </h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.2rem', marginBottom: '6rem' }}>
+                    {(routine.exercises || []).map((item: AnyType) => {
+                        const { currentMachine } = resolveItemMachine(item);
+                        const machineNumber = currentMachine?.number ?? null;
+                        const zone = getMachineZone(machineNumber);
+
+                        return (
+                            <div key={item.id} style={{ ...exerciseCardStyle, marginBottom: 0 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                                        <div style={{ ...prominentMachineHeaderStyle, fontSize: isMobile ? '1.1rem' : '1.4rem', padding: isMobile ? '8px 16px' : '10px 20px' }}>
+                                            {machineNumber ? `MÁQUINA Nº ${machineNumber}` : 'MÁQUINA GENÉRICA'}
+                                        </div>
+                                        {zone && (
+                                            <div style={{
+                                                backgroundColor: 'rgba(255, 77, 77, 0.18)',
+                                                border: '1px solid #ff4d4d',
+                                                color: '#fff',
+                                                padding: '8px 16px',
+                                                borderRadius: '12px',
+                                                fontWeight: 900,
+                                                fontSize: isMobile ? '0.95rem' : '1.15rem'
+                                            }}>
+                                                📍 {zone.name.toUpperCase()} ({zone.positionLabel})
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{ fontSize: isMobile ? '1.05rem' : '1.25rem', fontWeight: 'bold', color: '#ddd', marginTop: '4px' }}>
+                                        Nº {item.exercise?.number} — {item.exercise?.name}
+                                    </div>
+                                </div>
+
+                                <GymZoneMap
+                                    machineNumber={machineNumber}
+                                    machineDescription={currentMachine?.description}
+                                    compact={isMobile}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div style={footerStyle}>
+                    <button onClick={() => {
+                        setShowZoneIntro(false);
+                        window.scrollTo(0, 0);
+                    }} style={nextButtonStyle(isMobile)}>
+                        Ir a la Rutina →
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div style={containerStyle}>
             <div style={headerStyle(isMobile, timerActive)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', width: '100%' }}>
-                    <button onClick={onBack} style={{ ...backButtonStyle, padding: '6px 10px', marginBottom: 0 }}>←</button>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden' }}>
+                        <button onClick={onBack} style={{ ...backButtonStyle, padding: '6px 10px', marginBottom: 0 }}>←</button>
                         <h2 style={{ ...titleStyle(isMobile), margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {routine.name}
                         </h2>
                     </div>
+                    <button
+                        onClick={() => setShowZoneIntro(true)}
+                        style={{
+                            backgroundColor: 'rgba(255, 77, 77, 0.15)',
+                            color: '#ff4d4d',
+                            border: '1px solid #ff4d4d',
+                            borderRadius: '10px',
+                            padding: isMobile ? '6px 10px' : '8px 14px',
+                            fontSize: isMobile ? '0.8rem' : '0.9rem',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
+                        }}
+                    >
+                        📍 Ver plano
+                    </button>
                 </div>
             </div>
 
             <div style={exerciseListStyle}>
                 {routine.exercises.map((item: AnyType) => {
-                    const matchingExercises = (allExercises || []).filter(
-                        (ex: AnyType) => ex.number != null && item.exercise?.number != null && ex.number === item.exercise.number
-                    );
-                    const machinesFromNumberGroup = matchingExercises.flatMap((ex: AnyType) => ex.machines || []);
-
-                    const rawMachines = [
-                        ...(item.exercise?.machines || []),
-                        ...(item.machine ? [item.machine] : []),
-                        ...machinesFromNumberGroup
-                    ];
-
-                    const allMachinesForItem = Array.from(
-                        new Map(rawMachines.filter((m: AnyType) => m && m.id).map((m: AnyType) => [m.id, m])).values()
-                    );
-
-                    const currentMachine = selectedMachines[item.id] || item.machine || allMachinesForItem[0] || item.exercise?.machines?.[0];
+                    const { matchingExercises, allMachinesForItem, currentMachine } = resolveItemMachine(item);
                     const matchingExerciseForCurrentMachine = matchingExercises.find((ex: AnyType) =>
                         ex.machines?.some((m: AnyType) => m.id === currentMachine?.id)
                     );
