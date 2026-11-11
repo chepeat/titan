@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { getTrainingPlan, getExerciseLogs, getExercises } from '@/services/workoutActions';
 import RoutineDetailView from './RoutineDetailView';
+import { getMachineZone } from './GymZoneMap';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyType = any;
@@ -253,15 +254,17 @@ export default function UserPlanView({ planId, userId }: UserPlanViewProps) {
                                                         new Map(rawMachines.filter((m: AnyType) => m && m.id).map((m: AnyType) => [m.id, m])).values()
                                                     );
                                                     const mainMachine = item.machine || allMachinesForItem[0] || item.exercise?.machines?.[0];
+                                                    const mainMachineNum = item.machine?.number || item.exercise?.machines?.[0]?.number;
+                                                    const mainZone = getMachineZone(mainMachineNum);
                                                     const altMachines = allMachinesForItem.filter((m: AnyType) => m.id !== mainMachine?.id);
 
                                                     return (
                                                         <div key={item.id} style={exerciseItemStyle}>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
                                                                 <div style={exerciseNameStyle}>Nº {item.exercise?.number} — {item.exercise?.name}</div>
-                                                                {(item.machine?.number || item.exercise?.machines?.[0]?.number) && (
+                                                                {mainMachineNum && (
                                                                     <div style={prominentMachineBadgeStyle}>
-                                                                        MÁQUINA {item.machine?.number || item.exercise?.machines?.[0]?.number}
+                                                                        MÁQUINA {mainMachineNum}{mainZone ? ` · ${mainZone.name.toUpperCase()}` : ''}
                                                                     </div>
                                                                 )}
                                                             </div>

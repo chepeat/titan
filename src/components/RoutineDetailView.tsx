@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { logExerciseProgress } from '@/services/workoutActions';
+import GymZoneMap, { getMachineZone } from './GymZoneMap';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyType = any;
@@ -239,6 +240,7 @@ export default function RoutineDetailView({
                                                     .sort((a: AnyType, b: AnyType) => a.number - b.number)
                                                     .map((m: AnyType) => {
                                                         const isSelected = m.id === currentMachine?.id;
+                                                        const mZone = getMachineZone(m.number);
                                                         return (
                                                             <button
                                                                 key={m.id}
@@ -262,7 +264,10 @@ export default function RoutineDetailView({
                                                                 }}
                                                             >
                                                                 <span>⚙️</span>
-                                                                <span>{isSelected ? '✓ ' : ''}Máquina {m.number} ({m.description || 'Sin desc.'})</span>
+                                                                <span>
+                                                                    {isSelected ? '✓ ' : ''}Máquina {m.number} ({m.description || 'Sin desc.'})
+                                                                    {mZone ? ` · ${mZone.name}` : ''}
+                                                                </span>
                                                             </button>
                                                         );
                                                     })}
@@ -272,7 +277,20 @@ export default function RoutineDetailView({
 
                                     {!isSwitching && hasAlternatives && (
                                         <div style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: '#999', marginTop: '4px' }}>
-                                            🔄 Alternativas: {allMachinesForItem.filter((m: AnyType) => m.id !== currentMachine?.id).map((m: AnyType) => `Máq. ${m.number} (${m.description})`).join(' · ')}
+                                            🔄 Alternativas: {allMachinesForItem.filter((m: AnyType) => m.id !== currentMachine?.id).map((m: AnyType) => {
+                                                const z = getMachineZone(m.number);
+                                                return `Máq. ${m.number} (${m.description}${z ? ` · ${z.name}` : ''})`;
+                                            }).join(' · ')}
+                                        </div>
+                                    )}
+
+                                    {currentMachine?.number && (
+                                        <div style={{ marginTop: '8px' }}>
+                                            <GymZoneMap
+                                                machineNumber={currentMachine.number}
+                                                machineDescription={currentMachine.description}
+                                                compact={isMobile}
+                                            />
                                         </div>
                                     )}
                                 </div>
